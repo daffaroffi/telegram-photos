@@ -1,51 +1,121 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useCallback, useEffect, useState } from "react";
+import { getSettings, tgCheckConnection, tgGetMe } from "./api";
+import type { AppSettings, TelegramUser } from "./types";
+import Onboarding from "./components/Onboarding";
+import Gallery from "./components/Gallery";
+import BackupScreen from "./components/BackupScreen";
+import GoogleImport from "./components/GoogleImport";
+import SettingsScreen from "./components/SettingsScreen";
+type Tab = "gallery" | "backup" | "google" | "settings";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+export default function App() {
+  const [ready, setReady] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [me, setMe] = useState<TelegramUser | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [tab, setTab] = useState<Tab>("gallery");
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  const refreshConnection = useCallback(async () => {
+    const ok = await tgCheckConnection().catch(() => false);
+    setConnected(ok);
+    if (ok) {
+      const user = await tgGetMe().catch(() => null);
+      setMe(user);
+    } else {
+      setMe(null);
+    }
+  }, []);
+
+  const refreshSettings = useCallback(async () => {
+    const s = await getSettings().catch(() => null);
+    setSettings(s);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await Promise.all([refreshConnection(), refreshSettings()]);
+      setReady(true);
+    })();
+  }, [refreshConnection, refreshSettings]);
+
+  useEffect(() => {
+    const theme = settings?.theme ?? "system";
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const dark = theme === "dark" || (theme === "system" && prefersDark);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }, [settings]);
+
+  if (!ready || !settings) {
+    return <div className="boot">Memuat…</div>;
+  }
+
+  if (!connected) {
+    return <Onboarding onDone={refreshConnection} />;
   }
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-dot" />
+          Telegram Photos
+        </div>
+        {me && (
+          <div className="account" title={`${me.firstName} ${me.lastName ?? ""}`}>
+            {me.firstName.charAt(0).toUpperCase()}
+            {me.lastName ? me.lastName.charAt(0).toUpperCase() : ""}
+          </div>
+        )}
+      </header>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      <main className="content">
+        {tab === "gallery" && (
+          <Gallery settings={settings} onSettingsChange={(s) => setSettings(s)} />
+        )}
+        {tab === "backup" && (
+          <BackupScreen
+            settings={settings}
+            onSettingsChange={(s) => setSettings(s)}
+            onVaultChange={() => {}}
+          />
+        )}
+        {tab === "google" && <GoogleImport settings={settings} onSettingsChange={setSettings} />}
+        {tab === "settings" && (
+          <SettingsScreen
+            settings={settings}
+            onSettingsChange={setSettings}
+            onLogout={async () => {
+              await refreshConnection();
+            }}
+          />
+        )}
+      </main>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+      <nav className="tabbar">
+        <TabButton active={tab === "gallery"} onClick={() => setTab("gallery")} icon="▦" label="Galeri" />
+        <TabButton active={tab === "backup"} onClick={() => setTab("backup")} icon="▲" label="Backup" />
+        <TabButton active={tab === "google"} onClick={() => setTab("google")} icon="☁" label="Google" />
+        <TabButton active={tab === "settings"} onClick={() => setTab("settings")} icon="⚙" label="Atur" />
+      </nav>
+    </div>
   );
 }
 
-export default App;
+function TabButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: string;
+  label: string;
+}) {
+  return (
+    <button className={`tab ${active ? "active" : ""}`} onClick={onClick}>
+      <span className="tab-icon">{icon}</span>
+      <span className="tab-label">{label}</span>
+    </button>
+  );
+}
