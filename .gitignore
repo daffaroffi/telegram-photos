@@ -1,0 +1,39 @@
+# Reference material provided by the user (third-party code, not part of the app)
+/snipoff/
+
+# Built artifacts
+TelegramPhotos-*.apk
+*.apk
+*.aab
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Rust / Tauri
+app/src-tauri/target/
+app/src-tauri/gen/schemas/
+app/src-tauri/gen/android/
+
+# Android / Gradle
+app/src-tauri/gen/android/.gradle/
+app/src-tauri/gen/android/local.properties
+app/src-tauri/gen/android/app/build/
+app/src-tauri/gen/android/build/
+app/src-tauri/gen/android/app/src/main/assets/
+*.keystore
+!app/src-tauri/gen/android/keystore/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Env / secrets (API credentials must never be committed)
+.env
+.env.*
+*.session
