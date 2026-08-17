@@ -15,14 +15,17 @@ dist-ssr/
 # Rust / Tauri
 app/src-tauri/target/
 app/src-tauri/gen/schemas/
-app/src-tauri/gen/android/
 
-# Android / Gradle
+# Android / Gradle — keep the custom Kotlin plugin & manifests, ignore build output
 app/src-tauri/gen/android/.gradle/
-app/src-tauri/gen/android/local.properties
-app/src-tauri/gen/android/app/build/
 app/src-tauri/gen/android/build/
+app/src-tauri/gen/android/app/build/
+app/src-tauri/gen/android/local.properties
 app/src-tauri/gen/android/app/src/main/assets/
+app/src-tauri/gen/android/app/src/main/java/com/telegramphotos/app/generated/
+app/src-tauri/gen/android/tauri.settings.gradle
+app/src-tauri/gen/android/app/tauri.build.gradle.kts
+app/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar
 *.keystore
 !app/src-tauri/gen/android/keystore/
 
@@ -37,3 +40,6 @@ Thumbs.db
 .env
 .env.*
 *.session
+
+# APK signature sidecar
+*.idsig
