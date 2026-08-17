@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "app",
+  "productName": "TelegramPhotos",
   "version": "0.1.0",
-  "identifier": "com.acer.app",
+  "identifier": "com.telegramphotos.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "app",
-        "width": 800,
-        "height": 600
+        "title": "Telegram Photos",
+        "width": 480,
+        "height": 900
       }
     ],
     "security": {

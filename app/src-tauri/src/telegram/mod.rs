@@ -53,11 +53,27 @@ impl Default for TelegramState {
 
 /// Ensures the Grammers client is initialized with the given API ID, properly
 /// shutting down any previous runner to avoid task accumulation (reference
-/// pattern for preventing stack overflow).
+/// pattern for preventing stack overflow). Resolves the app data dir through
+/// Tauri's path resolver.
 pub async fn ensure_client_initialized(
     app: &AppHandle,
     state: &TelegramState,
     api_id: i32,
+) -> Result<Client, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+    ensure_client_initialized_with_dir(state, api_id, &app_data_dir).await
+}
+
+/// Same as [`ensure_client_initialized`] but with an explicit data directory.
+/// Used by the background worker (which has no Tauri `AppHandle`).
+pub async fn ensure_client_initialized_with_dir(
+    state: &TelegramState,
+    api_id: i32,
+    app_data_dir: &std::path::Path,
 ) -> Result<Client, String> {
     #[cfg(target_os = "android")]
     {
@@ -93,12 +109,6 @@ pub async fn ensure_client_initialized(
     }
 
     let runner_num = state.runner_count.fetch_add(1, Ordering::SeqCst) + 1;
-
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-    std::fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
 
     let session_path = app_data_dir.join("telegram.session");
     let session_path_str = session_path.to_string_lossy().to_string();

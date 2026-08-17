@@ -6,6 +6,7 @@
 
 pub mod android_media;
 pub mod backup;
+pub mod bg_worker;
 pub mod commands;
 pub mod crypto;
 pub mod db;
