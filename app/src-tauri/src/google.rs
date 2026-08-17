@@ -279,7 +279,6 @@ async fn get_access_token(db: &Db) -> Result<String, String> {
     let client_secret = settings
         .google_client_secret
         .ok_or("Client Secret belum diatur.")?;
-    let redirect_uri = format!("http://127.0.0.1:18762/callback");
 
     let client = reqwest::Client::new();
     let params = [
