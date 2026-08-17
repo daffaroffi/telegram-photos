@@ -176,7 +176,6 @@ pub async fn cmd_google_wait_oauth(
     let redirect_uri = format!("http://127.0.0.1:18762/callback");
 
     // Wait up to 5 minutes for the callback.
-    let _ = &redirect_uri;
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(300);
     loop {
         // Clone the code under the lock and release the guard before any await
@@ -399,7 +398,7 @@ async fn list_all_media(
     let mut page_token: Option<String> = None;
 
     loop {
-        let url = if let Some(album) = album_id {
+        let url = if album_id.is_some() {
             format!("{}/mediaItems:search", PHOTOS_API)
         } else {
             format!("{}/mediaItems", PHOTOS_API)
@@ -789,7 +788,7 @@ async fn run_import(
     session.eta_seconds = Some(0);
     db.upsert_google_session(&session)?;
 
-    emit_import_progress(app, &session, all.len(), all.len());
+    let _ = emit_import_progress(app, &session, all.len(), all.len());
     Ok(session_id)
 }
 
