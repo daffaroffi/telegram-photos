@@ -125,7 +125,7 @@ pub async fn upload_stream_to_peer(
             id: file_id,
             parts: total_parts,
             name: name.clone(),
-            md5_checksum: format!("{:x}", md5.compute()),
+            md5_checksum: format!("{:x}", md5.finalize()),
         }
         .into()
     };

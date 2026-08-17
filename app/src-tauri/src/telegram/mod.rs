@@ -11,6 +11,7 @@ pub mod vault;
 use crate::db::Db;
 use crate::models::{AuthCodeResult, TelegramUser, VaultInfo};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use grammers_client::types::Peer;
 use grammers_client::Client;
 use grammers_mtsender::SenderPool;
 use grammers_session::storages::SqliteSession;
@@ -29,6 +30,8 @@ pub struct TelegramState {
     pub password_token: Mutex<Option<grammers_client::types::PasswordToken>>,
     pub runner_shutdown: std::sync::Mutex<Option<oneshot::Sender<()>>>,
     pub runner_count: AtomicU32,
+    /// Cached vault channel peer (avoids dialog scans on every upload).
+    pub vault_peer: std::sync::Mutex<Option<Peer>>,
     /// Set of transfer ids marked for cancellation.
     pub cancelled_transfers: Arc<tokio::sync::RwLock<Vec<String>>>,
 }
@@ -42,6 +45,7 @@ impl Default for TelegramState {
             password_token: Mutex::new(None),
             runner_shutdown: std::sync::Mutex::new(None),
             runner_count: AtomicU32::new(0),
+            vault_peer: std::sync::Mutex::new(None),
             cancelled_transfers: Arc::new(tokio::sync::RwLock::new(Vec::new())),
         }
     }
