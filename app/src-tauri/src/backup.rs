@@ -43,6 +43,18 @@ pub async fn cmd_backup_status(state: State<'_, BackupState>) -> Result<bool, St
     Ok(*state.running.lock().unwrap())
 }
 
+/// Everything the backup core needs to run. The Tauri command supplies the
+/// `AppHandle`-backed emitter; the Android background worker supplies a JNI
+/// callback that updates a system notification.
+pub struct BackupContext<'a> {
+    pub db: &'a Db,
+    pub tg_state: &'a TelegramState,
+    pub vault_state: &'a VaultState,
+    pub cache_dir: PathBuf,
+    pub cancel: &'a Arc<AtomicBool>,
+    pub on_event: &'a (dyn Fn(&BackupProgressEvent) + Send + Sync),
+}
+
 /// One full backup cycle: uploads every pending item to the vault.
 #[tauri::command]
 pub async fn cmd_run_backup(
@@ -62,20 +74,32 @@ pub async fn cmd_run_backup(
     backup_state.cancelled.store(false, Ordering::Relaxed);
     let cancel = backup_state.cancelled.clone();
 
-    let result = run_backup_cycle(&app, tg_state.inner(), db.inner(), &cancel, vault_state.inner()).await;
+    let cache_dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?;
+
+    let on_event = |event: &BackupProgressEvent| {
+        let _ = app.emit("backup-progress", event.clone());
+    };
+    let ctx = BackupContext {
+        db: db.inner(),
+        tg_state: tg_state.inner(),
+        vault_state: vault_state.inner(),
+        cache_dir,
+        cancel: &cancel,
+        on_event: &on_event,
+    };
+    let result = run_backup_core(&ctx).await;
 
     *backup_state.running.lock().unwrap() = false;
     result
 }
 
-async fn run_backup_cycle(
-    app: &AppHandle,
-    tg_state: &TelegramState,
-    db: &Db,
-    cancel: &Arc<AtomicBool>,
-    vault_state: &VaultState,
-) -> Result<i64, String> {
-    let settings = db.get_settings()?;
+/// The backup state machine itself, independent of Tauri so the Android
+/// background worker can reuse it.
+pub async fn run_backup_core(ctx: &BackupContext<'_>) -> Result<i64, String> {
+    let settings = ctx.db.get_settings()?;
     if !settings.auto_backup_enabled {
         return Ok(0);
     }
@@ -86,21 +110,18 @@ async fn run_backup_cycle(
         return Ok(0);
     }
 
-    let client = current_client(tg_state).await?;
+    let client = current_client(ctx.tg_state).await?;
     let (channel_id, access_hash, _title) =
-        vault::get_or_create_vault(&client, db, tg_state).await?;
-    let peer = vault::peer_from_vault(&client, tg_state).await?;
+        vault::get_or_create_vault(&client, ctx.db, ctx.tg_state).await?;
+    let peer = vault::peer_from_vault(&client, ctx.tg_state).await?;
 
-    let pending = db.list_media_by_statuses(&["NOT_BACKED_UP", "QUEUED", "FAILED"])?;
+    let pending = ctx.db.list_media_by_statuses(&["NOT_BACKED_UP", "QUEUED", "FAILED"])?;
     let mut success_count: i64 = 0;
 
-    let cache_dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| e.to_string())?;
+    let cache_dir = &ctx.cache_dir;
 
     for (idx, item) in pending.iter().enumerate() {
-        if cancel.load(Ordering::Relaxed) {
+        if ctx.cancel.load(Ordering::Relaxed) {
             break;
         }
 
@@ -113,22 +134,50 @@ async fn run_backup_cycle(
 
         // Client-side encryption requires an unlocked vault (PRD 4.8)
         let encrypt = settings.client_encryption_enabled;
-        if encrypt && vault_state.key.lock().unwrap().is_none() {
-            emit(app, &item.id, &item.file_name, 0, "VAULT_LOCKED");
-            db.set_media_status(&item.id, "QUEUED")?;
+        if encrypt && ctx.vault_state.key.lock().unwrap().is_none() {
+            (ctx.on_event)(&BackupProgressEvent {
+                item_id: item.id.clone(),
+                file_name: item.file_name.clone(),
+                percent: 0,
+                status: "VAULT_LOCKED".into(),
+            });
+            ctx.db.set_media_status(&item.id, "QUEUED")?;
             continue;
         }
 
-        let Some(file_path) = item.file_path.clone() else {
-            // No local file (cloud-only) — nothing to upload.
-            db.set_media_status(&item.id, "CLOUD_ONLY")?;
-            continue;
+        // Resolve a real local file. Items scanned from the Android MediaStore
+        // carry a content:// URI in `local_identifier` and no file path; they
+        // are materialized into the cache just-in-time (PRD 4.3).
+        let mut materialized: Option<PathBuf> = None;
+        let path = match &item.file_path {
+            Some(p) if PathBuf::from(p).is_file() => PathBuf::from(p),
+            _ => {
+                let local_id = item.local_identifier.clone().unwrap_or_default();
+                if local_id.starts_with("content://") {
+                    let dir = cache_dir.join("materialized");
+                    let _ = std::fs::create_dir_all(&dir);
+                    match crate::android_media::materialize_media(
+                        &local_id,
+                        &dir.to_string_lossy(),
+                        &item.file_name,
+                    ) {
+                        Ok(p) if !p.is_empty() => {
+                            let pb = PathBuf::from(p);
+                            materialized = Some(pb.clone());
+                            pb
+                        }
+                        _ => {
+                            ctx.db.set_media_status(&item.id, "FAILED")?;
+                            continue;
+                        }
+                    }
+                } else {
+                    // No local file (cloud-only) — nothing to upload.
+                    ctx.db.set_media_status(&item.id, "CLOUD_ONLY")?;
+                    continue;
+                }
+            }
         };
-        let path = PathBuf::from(&file_path);
-        if !path.exists() {
-            db.set_media_status(&item.id, "FAILED")?;
-            continue;
-        }
 
         // Optional pre-upload encryption to a temp file.
         let upload_path: PathBuf;
@@ -136,7 +185,7 @@ async fn run_backup_cycle(
         let reader: Box<dyn tokio::io::AsyncRead + Unpin + Send>;
         if encrypt {
             let temp = cache_dir.join(format!("{}.tdenc", item.id));
-            let key_bytes = vault_state.key.lock().unwrap().clone().ok_or("Vault terkunci")?;
+            let key_bytes = ctx.vault_state.key.lock().unwrap().clone().ok_or("Vault terkunci")?;
             let key = crypto::VaultKey(key_bytes.try_into().map_err(|_| "Kunci vault tidak valid")?);
             crypto::encrypt_file(&path, &temp, &key)?;
             upload_path = temp;
@@ -150,8 +199,13 @@ async fn run_backup_cycle(
             reader = Box::new(f);
         }
 
-        db.set_media_status(&item.id, "UPLOADING")?;
-        emit(app, &item.id, &item.file_name, 0, "UPLOADING");
+        ctx.db.set_media_status(&item.id, "UPLOADING")?;
+        (ctx.on_event)(&BackupProgressEvent {
+            item_id: item.id.clone(),
+            file_name: item.file_name.clone(),
+            percent: 0,
+            status: "UPLOADING".into(),
+        });
 
         let item_id = item.id.clone();
         let file_name = item.file_name.clone();
@@ -169,22 +223,30 @@ async fn run_backup_cycle(
             name,
             &item.mime_type,
             item.media_type == "video",
-            Some(cancel.clone()),
+            Some(ctx.cancel.clone()),
             |uploaded, total| {
                 let percent = if total > 0 {
                     ((uploaded as f64 / total as f64) * 100.0) as i64
                 } else {
                     0
                 };
-                let _ = db.set_media_status(&item_id, "UPLOADING");
-                emit(app, &item_id, &file_name, percent.min(100), "UPLOADING");
+                let _ = ctx.db.set_media_status(&item_id, "UPLOADING");
+                (ctx.on_event)(&BackupProgressEvent {
+                    item_id: item_id.clone(),
+                    file_name: file_name.clone(),
+                    percent: percent.min(100),
+                    status: "UPLOADING".into(),
+                });
             },
         )
         .await;
 
-        // Clean up temp encryption file.
+        // Clean up temp encryption file and any just-in-time materialized copy.
         if encrypt {
             let _ = std::fs::remove_file(&upload_path);
+        }
+        if let Some(m) = materialized {
+            let _ = std::fs::remove_file(&m);
         }
 
         match result {
@@ -197,16 +259,26 @@ async fn run_backup_cycle(
                 updated.tg_file_id = Some(format!("{}:{}", channel_id, message_id));
                 updated.upload_progress = Some(100);
                 updated.error_message = None;
-                db.upsert_media(&updated)?;
-                emit(app, &item.id, &item.file_name, 100, "BACKED_UP");
+                ctx.db.upsert_media(&updated)?;
+                (ctx.on_event)(&BackupProgressEvent {
+                    item_id: item.id.clone(),
+                    file_name: item.file_name.clone(),
+                    percent: 100,
+                    status: "BACKED_UP".into(),
+                });
                 success_count += 1;
             }
             Err(err) => {
                 let mut updated = item.clone();
                 updated.sync_status = "FAILED".to_string();
                 updated.error_message = Some(err.clone());
-                db.upsert_media(&updated)?;
-                emit(app, &item.id, &item.file_name, 0, "FAILED");
+                ctx.db.upsert_media(&updated)?;
+                (ctx.on_event)(&BackupProgressEvent {
+                    item_id: item.id.clone(),
+                    file_name: item.file_name.clone(),
+                    percent: 0,
+                    status: "FAILED".into(),
+                });
                 log::warn!("Backup gagal untuk {}: {}", item.file_name, err);
             }
         }
@@ -219,18 +291,6 @@ async fn run_backup_cycle(
     }
 
     Ok(success_count)
-}
-
-fn emit(app: &AppHandle, item_id: &str, file_name: &str, percent: i64, status: &str) {
-    let _ = app.emit(
-        "backup-progress",
-        BackupProgressEvent {
-            item_id: item_id.to_string(),
-            file_name: file_name.to_string(),
-            percent,
-            status: status.to_string(),
-        },
-    );
 }
 
 /// Constraint check. On desktop the user is assumed to be on a fixed network;

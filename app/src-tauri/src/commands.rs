@@ -194,6 +194,9 @@ pub async fn cmd_scan_gallery_android(
         .filter_map(|m| m.local_identifier)
         .collect();
 
+    let materialize_dir = cache_dir.join("materialized");
+    let _ = std::fs::create_dir_all(&materialize_dir);
+
     for entry in entries {
         // Only ingest items that are not yet known (by local identifier).
         if existing_ids.contains(&entry.id) {
@@ -202,9 +205,12 @@ pub async fn cmd_scan_gallery_android(
 
         let mut item = MediaItem {
             id: uuid::Uuid::new_v4().to_string(),
+            // On Android the scanner returns a content:// URI (from the
+            // MediaStore); on desktop entries carry a real path. The URI is
+            // kept so the backup engine can materialize the file on demand.
             local_identifier: Some(entry.id.clone()),
-            file_name: entry.file_name,
-            file_path: entry.path.clone().or(Some(entry.uri.clone())),
+            file_name: entry.file_name.clone(),
+            file_path: None,
             mime_type: entry.mime_type,
             media_type: entry.media_type,
             file_size_bytes: entry.size_bytes,
@@ -244,49 +250,71 @@ pub async fn cmd_scan_gallery_android(
             trashed_timestamp: None,
             is_encrypted: false,
             album_ids: Vec::new(),
-            device_folder: Some(entry.device_folder),
+            device_folder: Some(entry.device_folder.clone()),
         };
 
-        // Geo reverse-code + thumbnail where possible (Android path exposes
-        // real file paths, so we can hash + thumbnail).
-        if let Some(path_str) = &item.file_path {
-            let path = std::path::PathBuf::from(path_str);
-            if path.is_file() {
-                match media::sha256_file(&path) {
-                    Ok(hash) => item.sha256_hash = hash,
-                    Err(_) => {}
+        // Materialize the MediaStore URI into a real file so we can hash,
+        // thumbnail and reverse-geocode it. The file is deleted afterwards;
+        // only the small thumbnails stay in the cache.
+        let effective_path = if entry.id.starts_with("content://") {
+            crate::android_media::materialize_media(
+                &entry.id,
+                &materialize_dir.to_string_lossy(),
+                &entry.file_name,
+            )
+            .ok()
+            .map(std::path::PathBuf::from)
+        } else {
+            entry
+                .path
+                .as_ref()
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.is_file())
+        };
+
+        if let Some(path) = &effective_path {
+            if let Ok(hash) = media::sha256_file(path) {
+                item.sha256_hash = hash;
+            }
+            if item.media_type == "image" {
+                if let Ok((micro, medium)) =
+                    media::generate_thumbnails(path, &thumb_dir, &item.id)
+                {
+                    item.thumbnail_path = Some(micro);
+                    item.preview_path = Some(medium);
                 }
-                if item.media_type == "image" {
-                    if let Ok((micro, medium)) = media::generate_thumbnails(&path, &thumb_dir, &item.id) {
-                        item.thumbnail_path = Some(micro);
-                        item.preview_path = Some(medium);
-                    }
-                    if let Ok(img) = image::open(&path) {
-                        item.width = Some(img.width() as i64);
-                        item.height = Some(img.height() as i64);
-                        let bh = media::encode_blurhash(&img.to_rgb8(), 4, 3);
-                        if !bh.is_empty() {
-                            item.blur_hash = Some(bh);
-                        }
-                    }
-                    if let Ok(Some(exif)) = media::extract_exif(&path) {
-                        item.camera_make = exif.camera_make;
-                        item.camera_model = exif.camera_model;
-                        item.iso = exif.iso;
-                        item.aperture = exif.aperture;
-                        item.focal_length = exif.focal_length;
-                        if item.date_taken == 0 {
-                            item.date_taken = exif.date_taken.unwrap_or(item.date_taken);
-                        }
-                        if let (Some(lat), Some(lon)) = (exif.latitude, exif.longitude) {
-                            item.latitude = Some(lat);
-                            item.longitude = Some(lon);
-                            let (city, country) = crate::geo::reverse_geocode(lat, lon);
-                            item.geo_city = city;
-                            item.geo_country = country;
-                        }
+                if let Ok(img) = image::open(path) {
+                    item.width = Some(img.width() as i64);
+                    item.height = Some(img.height() as i64);
+                    let bh = media::encode_blurhash(&img.to_rgb8(), 4, 3);
+                    if !bh.is_empty() {
+                        item.blur_hash = Some(bh);
                     }
                 }
+                if let Ok(Some(exif)) = media::extract_exif(path) {
+                    item.camera_make = exif.camera_make;
+                    item.camera_model = exif.camera_model;
+                    item.iso = exif.iso;
+                    item.aperture = exif.aperture;
+                    item.focal_length = exif.focal_length;
+                    if item.date_taken == 0 {
+                        item.date_taken = exif.date_taken.unwrap_or(item.date_taken);
+                    }
+                    if let (Some(lat), Some(lon)) = (exif.latitude, exif.longitude) {
+                        item.latitude = Some(lat);
+                        item.longitude = Some(lon);
+                        let (city, country) = crate::geo::reverse_geocode(lat, lon);
+                        item.geo_city = city;
+                        item.geo_country = country;
+                    }
+                }
+            }
+        }
+
+        // Free the materialized copy; the item stays ingestable via its URI.
+        if let Some(path) = &effective_path {
+            if entry.id.starts_with("content://") {
+                let _ = std::fs::remove_file(path);
             }
         }
 
