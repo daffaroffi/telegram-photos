@@ -154,7 +154,6 @@ pub fn generate_thumbnails(
     let micro_path = thumb_dir.join(format!("{}_micro.webp", media_id));
     let medium_path = thumb_dir.join(format!("{}_medium.webp", media_id));
 
-    let (w, h) = (img.width(), img.height());
     let rgb = img.to_rgb8();
     let micro = resize_to(&rgb, 120);
     let medium = resize_to(&rgb, 600);
