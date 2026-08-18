@@ -11,6 +11,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -65,22 +66,29 @@ object MediaPlugin {
         )
 
         for ((uri, mediaType) in collections) {
-            val projection = arrayOf(
-                MediaStore.MediaColumns._ID,
-                MediaStore.MediaColumns.DISPLAY_NAME,
-                MediaStore.MediaColumns.MIME_TYPE,
-                MediaStore.MediaColumns.SIZE,
-                MediaStore.MediaColumns.DATE_TAKEN,
-                MediaStore.MediaColumns.WIDTH,
-                MediaStore.MediaColumns.HEIGHT,
-                MediaStore.MediaColumns.DURATION,
-                "latitude",
-                "longitude",
-                MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
-                MediaStore.MediaColumns.DATE_MODIFIED,
-                MediaStore.MediaColumns.RELATIVE_PATH,
-                MediaStore.MediaColumns.IS_FAVORITE,
-            )
+            // Build the projection dynamically: some columns only exist on
+            // newer API levels, and querying a missing column throws
+            // SQLiteException (which made the whole scan fail on API < 29).
+            val projection = buildList {
+                add(MediaStore.MediaColumns._ID)
+                add(MediaStore.MediaColumns.DISPLAY_NAME)
+                add(MediaStore.MediaColumns.MIME_TYPE)
+                add(MediaStore.MediaColumns.SIZE)
+                add(MediaStore.MediaColumns.DATE_TAKEN)
+                add(MediaStore.MediaColumns.WIDTH)
+                add(MediaStore.MediaColumns.HEIGHT)
+                add(MediaStore.MediaColumns.DURATION)
+                add(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
+                add(MediaStore.MediaColumns.DATE_MODIFIED)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    add(MediaStore.MediaColumns.RELATIVE_PATH)
+                    add(MediaStore.Images.Media.LATITUDE)
+                    add(MediaStore.Images.Media.LONGITUDE)
+                }
+                if (Build.VERSION.SDK_INT >= 33) {
+                    add(MediaStore.MediaColumns.IS_FAVORITE)
+                }
+            }.toTypedArray()
             val selection = if (folder.isNotBlank()) {
                 "${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} = ?"
             } else null
@@ -96,8 +104,8 @@ object MediaPlugin {
                     val widthCol = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
                     val heightCol = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
                     val durCol = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
-                    val latCol = cursor.getColumnIndex("latitude")
-                    val lonCol = cursor.getColumnIndex("longitude")
+                    val latCol = cursor.getColumnIndex(MediaStore.Images.Media.LATITUDE)
+                    val lonCol = cursor.getColumnIndex(MediaStore.Images.Media.LONGITUDE)
                     val bucketCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
                     val modCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
                     val relCol = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
@@ -109,7 +117,7 @@ object MediaPlugin {
                         val obj = JSONObject()
                         obj.put("id", "$mediaType:$id")
                         obj.put("uri", itemUri.toString())
-                        obj.put("path", cursor.getString(relCol))
+                        obj.put("path", if (relCol >= 0) cursor.getString(relCol) else JSONObject.NULL)
                         obj.put("fileName", cursor.getString(nameCol) ?: "")
                         obj.put("mimeType", cursor.getString(mimeCol) ?: "application/octet-stream")
                         obj.put("mediaType", mediaType)
@@ -122,6 +130,10 @@ object MediaPlugin {
                         obj.put("longitude", if (lonCol >= 0 && !cursor.isNull(lonCol)) cursor.getDouble(lonCol) else JSONObject.NULL)
                         obj.put("deviceFolder", cursor.getString(bucketCol) ?: "")
                         obj.put("isFavorite", favCol >= 0 && cursor.getInt(favCol) == 1)
+                        // Native small thumbnail (avoids decoding full photos in
+                        // Rust, which caused OOM crashes when scanning large
+                        // galleries).
+                        obj.put("thumbnailPath", makeThumbnail(ctx, itemUri, id, mediaType) ?: JSONObject.NULL)
                         entries.put(obj)
                     }
                 }
@@ -130,6 +142,38 @@ object MediaPlugin {
             }
         }
         return entries.toString()
+    }
+
+    /**
+     * Creates a small (~256px) JPEG thumbnail in the cache dir using Android's
+     * native decoder. Returns the absolute path, or null on failure.
+     */
+    private fun makeThumbnail(ctx: Context, uri: Uri, id: Long, mediaType: String): String? {
+        return try {
+            val dir = File(ctx.cacheDir, "scanthumbs")
+            dir.mkdirs()
+            val out = File(dir, "${mediaType}_${id}.jpg")
+            if (out.exists() && out.length() > 0) return out.absolutePath
+            val bmp = if (Build.VERSION.SDK_INT >= 29) {
+                ctx.contentResolver.loadThumbnail(uri, android.util.Size(256, 256), null)
+            } else if (mediaType == "image") {
+                MediaStore.Images.Thumbnails.getThumbnail(
+                    ctx.contentResolver, id, MediaStore.Images.Thumbnails.MINI_KIND, null
+                )
+            } else {
+                MediaStore.Video.Thumbnails.getThumbnail(
+                    ctx.contentResolver, id, MediaStore.Video.Thumbnails.MINI_KIND, null
+                )
+            }
+            if (bmp == null) return null
+            out.outputStream().use { fos ->
+                bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, fos)
+            }
+            out.absolutePath
+        } catch (e: Exception) {
+            Log.w(TAG, "makeThumbnail failed: ${e.message}")
+            null
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -114,6 +114,7 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top));
   border-bottom: 1px solid var(--border);
   background: var(--card);
 }
@@ -155,6 +156,7 @@ a {
   display: flex;
   border-top: 1px solid var(--border);
   background: var(--card);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .tab {
@@ -579,7 +581,7 @@ a {
 /* ── Toast ────────────────────────────────────────────────────────────── */
 .toast {
   position: fixed;
-  bottom: 76px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   background: #222;

@@ -26,6 +26,8 @@ pub struct NativeMediaEntry {
     pub longitude: Option<f64>,
     pub device_folder: String,
     pub is_favorite: bool,
+    /// Small JPEG thumbnail generated natively by Android (absolute path).
+    pub thumbnail_path: Option<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

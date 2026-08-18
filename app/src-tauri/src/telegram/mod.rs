@@ -218,13 +218,33 @@ pub async fn cmd_connect(
 }
 
 #[tauri::command]
-pub async fn cmd_check_connection(state: State<'_, TelegramState>) -> Result<bool, String> {
+pub async fn cmd_check_connection(
+    app: AppHandle,
+    db: State<'_, Db>,
+    state: State<'_, TelegramState>,
+) -> Result<bool, String> {
+    // Fast path: an already-initialized client.
     if let Some(client) = state.client.lock().await.as_ref().cloned() {
-        if client.get_me().await.is_ok() {
-            return Ok(true);
-        }
+        return Ok(client.get_me().await.is_ok());
     }
-    Ok(false)
+
+    // Cold start: restore the persisted session from disk (the SQLite-backed
+    // session stores the auth key automatically). This is what lets the app
+    // reopen straight into the gallery instead of asking for a new login code
+    // (and spamming Telegram with OTP requests).
+    let Ok(settings) = db.get_settings() else {
+        return Ok(false);
+    };
+    let Some(api_id_str) = settings.telegram_api_id else {
+        return Ok(false);
+    };
+    let Ok(api_id) = api_id_str.trim().parse::<i32>() else {
+        return Ok(false);
+    };
+    match ensure_client_initialized(&app, &state, api_id).await {
+        Ok(client) => Ok(client.is_authorized().await.unwrap_or(false)),
+        Err(_) => Ok(false),
+    }
 }
 
 #[tauri::command]
