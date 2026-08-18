@@ -7,6 +7,7 @@ import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
 import '../widgets/backup_banner.dart';
 import '../widgets/status_badge.dart';
+import 'upload_screen.dart';
 
 /// Tab Photos (PRD Part 2 §3.1): combined local+cloud timeline in one
 /// virtualized grid, status badge per photo, backup banner on progress.
@@ -158,10 +159,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
     });
 
   void _openProgressHub(BuildContext context, UploadsSummary summary) {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => _ProgressHubSheet(summary: summary),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const UploadScreen()),
     );
   }
 
@@ -359,98 +358,4 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// Task Progress Hub (T1) — bottom sheet showing upload queue & failures.
-class _ProgressHubSheet extends StatelessWidget {
-  const _ProgressHubSheet({required this.summary});
 
-  final UploadsSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    final failed = core.listUploadsByStatus(status: 'FAILED');
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Backup progress', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
-            _StatRow(
-              label: 'Backed up',
-              count: summary.backedUpCount,
-              bytes: summary.backedUpBytes,
-            ),
-            _StatRow(
-              label: 'Uploading / queued',
-              count: summary.uploadingCount + summary.queuedCount,
-              bytes: summary.uploadingBytes + summary.queuedBytes,
-            ),
-            _StatRow(
-              label: 'Failed',
-              count: summary.failedCount,
-              bytes: summary.failedBytes,
-            ),
-            if (failed.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              const Text('Failed items (tap to retry):',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              ...failed.take(5).map((u) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.error_outline, color: Colors.red),
-                    title: Text(
-                      u.mediaId,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(u.lastError ?? ''),
-                    trailing: TextButton(
-                      onPressed: () => core.retryUpload(uploadId: u.id),
-                      child: const Text('Retry'),
-                    ),
-                  )),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              'Uploads continue in the background.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.count, required this.bytes});
-
-  final String label;
-  final int count;
-  final int bytes;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Expanded(child: Text(label)),
-          Text(
-            '$count · ${_fmt(bytes)}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _fmt(int b) {
-    if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
-    return '${(b / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-}
