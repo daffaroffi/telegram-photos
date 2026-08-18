@@ -40,6 +40,7 @@ Catatan:
 | 2FA cloud password | ✅ Nyata | `cmd_auth_check_password` (PasswordRequired → check_password) |
 | Login QR | ✅ Nyata | `cmd_auth_qr_login` (exportLoginToken) + `cmd_auth_qr_poll` |
 | Auto-provisioning Private Channel | ✅ Nyata | `telegram/vault.rs` `get_or_create_vault` — buat/deteksi `TelegramPhotos_Vault` |
+| Sesi persist + auto-restore (tanpa login ulang) | ✅ Nyata | `cmd_check_connection` cold-start auto-restore dari `telegram.session`; tidak meminta OTP berulang |
 | File hingga 2 GB (4 GB Premium) | ✅ Nyata | Upload chunked `saveBigFilePart` tanpa batas ukuran khusus |
 | Original quality tanpa kompresi | ✅ Nyata | File di-upload apa adanya (kecuali mode enkripsi yang menambah envelope) |
 
@@ -49,10 +50,11 @@ Catatan:
 
 | Persyaratan PRD | Status | Implementasi |
 |---|---|---|
-| MediaStore Images + Video | ✅ Nyata | `MediaPlugin.kt` `scanMediaStore` (query kedua koleksi) |
+| MediaStore Images + Video | ✅ Nyata | `MediaPlugin.kt` `scanMediaStore` (query kedua koleksi, projection per API level) |
 | ContentObserver real-time | ✅ Nyata | `MediaPlugin.registerContentObserver` + `android_media.rs` |
-| EXIF offline (tanggal, GPS, kamera, ISO, aperture, focal, orientasi) | ✅ Nyata | `media.rs` `extract_exif` |
-| SHA-256 | ✅ Nyata | `media.rs` `sha256_file` |
+| EXIF offline (tanggal, GPS, kamera, ISO, aperture, focal, orientasi) | ✅ Nyata | `media.rs` `extract_exif` (header-only) |
+| SHA-256 | ✅ Nyata | `media.rs` `sha256_file` (streaming) |
+| Scan anti-OOM (galeri besar) | ✅ Nyata | Tanpa decode penuh di Rust; thumbnail 256 px dari decoder native Android; dimensi via header |
 | iOS PHPhotoLibrary | ❌ Belum | Proyek Android-first; struktur `android_media.rs` siap di-mirror ke iOS nanti |
 
 ---
@@ -149,7 +151,7 @@ Penggantian ke GeoNames/OSM SQLite 15 MB tinggal mengganti `KNOWN_PLACES` di
 | Persyaratan PRD | Status | Implementasi |
 |---|---|---|
 | Rendering 120 FPS untuk 50–100k foto | ⚠️ Sebagian | Grid di-render per bulan (bukan seluruh dataset); virtualisasi penuh + ImageDecoder native belum (lihat catatan) |
-| RAM minimal / anti-OOM | ⚠️ Sebagian | Thumbnail WebP kecil + BlurHash; beban decode di WebView |
+| RAM minimal / anti-OOM | ✅ Nyata | Scan tanpa decode penuh (dimensi header-only, thumbnail native Android, hash streaming); decode penuh hanya di WebView saat tampil |
 | SQLite untuk 100k+ baris | ✅ Nyata | Index pada kolom kunci (tanggal, hash, status); keyset pagination tersedia (`cmd_list_timeline` before_timestamp) |
 | Streaming MTProto efisien | ✅ Nyata | Upload chunked 512 KB parts, progress, FloodWait |
 | Efisiensi baterai | ⚠️ Sebagian | WorkManager (OS-scheduled) + constraints; throttling berbasis suhu belum |

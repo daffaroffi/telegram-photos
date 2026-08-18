@@ -45,6 +45,28 @@ app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-
 app/src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
 ```
 
+> **Frontend assets**: `app/dist` (hasil `vite build`, dijalankan otomatis oleh
+> `beforeBuildCommand`) didaftarkan sebagai asset source dir di
+> `gen/android/app/build.gradle.kts` — ikut ter-bundle ke APK otomatis.
+> `gen/android/app/src/main/jniLibs/` (hasil build `.so`) di-ignore git dan
+> dihasilkan kembali saat build.
+
+> **Workaround — gradle gagal spawn `npm` di Windows** (error
+> `A problem occurred starting process 'command 'npm.bat''`): build `.so`
+> manual lalu assemble dengan skip task rust:
+> ```bash
+> cd app/src-tauri
+> # set NDK toolchain di PATH + CC_aarch64_linux_android / AR_aarch64_linux_android
+> cargo build --release --target aarch64-linux-android
+> mkdir -p gen/android/app/src/main/jniLibs/arm64-v8a
+> cp target/aarch64-linux-android/release/libtelegram_photos_lib.so \
+>    gen/android/app/src/main/jniLibs/arm64-v8a/
+> cd gen/android
+> ./gradlew :app:assembleUniversalRelease \
+>   -x rustBuildArm64Release -x rustBuildArmRelease \
+>   -x rustBuildX86Release -x rustBuildX86_64Release -x rustBuildUniversalRelease
+> ```
+
 ### Signing (wajib agar bisa diinstal)
 
 Tauri tidak menandatangani APK release secara otomatis. Buat keystore sekali:
