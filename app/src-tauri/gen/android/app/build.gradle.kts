@@ -57,6 +57,21 @@ rust {
     rootDirRel = "../../../"
 }
 
+// ── Frontend assets ──────────────────────────────────────────────────────────
+// The Tauri CLI does not reliably copy `frontendDist` into the Android assets
+// (it silently skipped it, leaving the WebView with no index.html and making
+// the app crash on startup). Copy the Vite output here deterministically on
+// every build instead. `beforeBuildCommand` (`npm run build`) always runs
+// before Gradle, so `dist` is guaranteed to exist.
+val copyFrontendAssets = tasks.register<Copy>("copyFrontendAssets") {
+    from("../../../../dist")
+    into("src/main/assets")
+    duplicatesStrategy = DuplicatesStrategy.INHERIT
+}
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+    dependsOn(copyFrontendAssets)
+}
+
 dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")

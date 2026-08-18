@@ -44,7 +44,7 @@ pub fn constraints_ok(wifi_only: bool, charging_only: bool) -> bool {
     // fail-open so backups are never silently blocked forever.
     with_env(|env| {
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         let result = env
             .call_static_method(
@@ -77,7 +77,7 @@ pub fn scan_gallery(_folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, Stri
 pub fn scan_gallery(folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, String> {
     with_env(|env| {
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         let arg = env
             .new_string(folder.unwrap_or(""))
@@ -104,7 +104,7 @@ pub fn scan_gallery(folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, Strin
 pub fn materialize_media(uri: &str, dest_dir: &str, file_name: &str) -> Result<String, String> {
     with_env(|env| {
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         let uri_s = env.new_string(uri).map_err(|e| e.to_string())?;
         let dir_s = env.new_string(dest_dir).map_err(|e| e.to_string())?;
@@ -144,7 +144,7 @@ pub fn materialize_media(_uri: &str, _dest_dir: &str, _file_name: &str) -> Resul
 pub fn register_content_observer() -> Result<(), String> {
     with_env(|env| {
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         let arg = env.new_string("").map_err(|e| e.to_string())?;
         env.call_static_method(
