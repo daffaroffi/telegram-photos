@@ -14,7 +14,7 @@ Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyz
 
 ## Features
 
-### ✅ Implemented
+### Implemented
 
 **Telegram Login**
 - QR code login (scan with Telegram on another device).
@@ -46,7 +46,7 @@ Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyz
 - Grid column count (3/4/5/6).
 - Encryption setup with passphrase.
 
-### 🔜 Planned
+### Planned
 
 - Background backup via WorkManager.
 - Push notifications for backup progress.
