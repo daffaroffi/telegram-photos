@@ -130,6 +130,12 @@ npm run tauri dev
 Detail lengkap (prasyarat, signing keystore, struktur perintah): lihat
 **[docs/BUILD.md](docs/BUILD.md)**.
 
+## Referensi riset
+
+- **[docs/TELEPHOTO_RE.md](docs/TELEPHOTO_RE.md)** — hasil reverse engineering
+  aplikasi pesaing Telephoto v69 (Flutter + Bot API): arsitektur, model data,
+  pola UI/UX yang layak ditiru, dan kelemahan yang menjadi pembeda kita.
+
 ## Lisensi
 
 [MIT](LICENSE)
