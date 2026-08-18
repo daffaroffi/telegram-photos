@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1918914929;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1215630346;
 
 // Section: executor
 
@@ -46,6 +46,248 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__db__add_caption_tag_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_caption_tag",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_media_id = <String>::sse_decode(&mut deserializer);
+            let api_tag = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::add_caption_tag(api_media_id, api_tag)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__add_to_collection_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "add_to_collection",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            let api_media_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::add_to_collection(api_collection_id, api_media_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__count_media_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "count_media",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::count_media()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__create_collection_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_collection",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::create_collection(api_name)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__get_caption_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_caption",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_media_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::get_caption(api_media_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__get_media_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_media",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::api::db::get_media(api_id)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__db__get_settings_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_settings",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::get_settings()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__get_vault_info_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_vault_info",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::get_vault_info()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__simple__greet_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -110,14 +352,625 @@ fn wire__crate__api__simple__init_app_impl(
         },
     )
 }
+fn wire__crate__api__db__init_core_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "init_core",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_db_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::init_core(api_db_path)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__list_albums_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_albums",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::list_albums()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__list_collection_items_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_collection_items",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::list_collection_items(api_collection_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__list_collections_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_collections",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::list_collections()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__list_timeline_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_timeline",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_before_timestamp = <Option<i64>>::sse_decode(&mut deserializer);
+            let api_limit = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::list_timeline(api_before_timestamp, api_limit)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__list_uploads_by_status_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "list_uploads_by_status",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_status = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::list_uploads_by_status(api_status)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__remove_from_collection_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "remove_from_collection",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            let api_media_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok =
+                    crate::api::db::remove_from_collection(api_collection_id, api_media_id)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__save_caption_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_caption",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_media_id = <String>::sse_decode(&mut deserializer);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::save_caption(api_media_id, api_text)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__save_settings_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "save_settings",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_settings = <crate::api::mirror::AppSettings>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::save_settings(api_settings)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__search_by_hashtag_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "search_by_hashtag",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_tag = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::search_by_hashtag(api_tag)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__db__uploads_summary_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "uploads_summary",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::uploads_summary()?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+
+// Section: static_checks
+
+#[allow(clippy::unnecessary_literal_unwrap)]
+const _: fn() = || {
+    {
+        let Album = None::<crate::api::mirror::Album>.unwrap();
+        let _: String = Album.id;
+        let _: String = Album.name;
+        let _: i64 = Album.created_at;
+        let _: Option<String> = Album.cover_media_id;
+        let _: bool = Album.is_pinned;
+        let _: String = Album.source_type;
+        let _: i64 = Album.item_count;
+    }
+    {
+        let AppSettings = None::<crate::api::mirror::AppSettings>.unwrap();
+        let _: bool = AppSettings.auto_backup_enabled;
+        let _: bool = AppSettings.backup_over_wifi_only;
+        let _: bool = AppSettings.backup_while_charging_only;
+        let _: bool = AppSettings.upload_original_quality;
+        let _: std::collections::HashMap<String, bool> = AppSettings.folder_backup_settings;
+        let _: bool = AppSettings.client_encryption_enabled;
+        let _: bool = AppSettings.vault_passphrase_set;
+        let _: i64 = AppSettings.grid_column_count;
+        let _: String = AppSettings.theme;
+        let _: Option<String> = AppSettings.telegram_api_id;
+        let _: Option<String> = AppSettings.telegram_api_hash;
+        let _: Option<String> = AppSettings.google_client_id;
+        let _: Option<String> = AppSettings.google_client_secret;
+    }
+    {
+        let Collection = None::<crate::api::mirror::Collection>.unwrap();
+        let _: String = Collection.id;
+        let _: String = Collection.name;
+        let _: Option<String> = Collection.cover_media_id;
+        let _: bool = Collection.is_cloud;
+        let _: i64 = Collection.sort_order;
+        let _: i64 = Collection.created_at;
+        let _: i64 = Collection.item_count;
+    }
+    {
+        let MediaItem = None::<crate::api::mirror::MediaItem>.unwrap();
+        let _: String = MediaItem.id;
+        let _: Option<String> = MediaItem.local_identifier;
+        let _: String = MediaItem.file_name;
+        let _: Option<String> = MediaItem.file_path;
+        let _: String = MediaItem.mime_type;
+        let _: String = MediaItem.media_type;
+        let _: i64 = MediaItem.file_size_bytes;
+        let _: String = MediaItem.sha256_hash;
+        let _: i64 = MediaItem.date_taken;
+        let _: i64 = MediaItem.date_added;
+        let _: Option<i64> = MediaItem.width;
+        let _: Option<i64> = MediaItem.height;
+        let _: Option<i64> = MediaItem.orientation;
+        let _: Option<i64> = MediaItem.duration_ms;
+        let _: Option<String> = MediaItem.camera_make;
+        let _: Option<String> = MediaItem.camera_model;
+        let _: Option<f64> = MediaItem.focal_length;
+        let _: Option<f64> = MediaItem.aperture;
+        let _: Option<i64> = MediaItem.iso;
+        let _: Option<String> = MediaItem.exposure_time;
+        let _: Option<f64> = MediaItem.latitude;
+        let _: Option<f64> = MediaItem.longitude;
+        let _: Option<String> = MediaItem.geo_city;
+        let _: Option<String> = MediaItem.geo_country;
+        let _: String = MediaItem.sync_status;
+        let _: Option<i64> = MediaItem.upload_progress;
+        let _: Option<String> = MediaItem.error_message;
+        let _: Option<i64> = MediaItem.tg_channel_id;
+        let _: Option<i64> = MediaItem.tg_message_id;
+        let _: Option<String> = MediaItem.tg_file_id;
+        let _: Option<i64> = MediaItem.tg_access_hash;
+        let _: bool = MediaItem.imported_from_google_photos;
+        let _: Option<String> = MediaItem.google_photos_media_id;
+        let _: Option<String> = MediaItem.google_cleanup_status;
+        let _: Option<String> = MediaItem.thumbnail_path;
+        let _: Option<String> = MediaItem.preview_path;
+        let _: Option<String> = MediaItem.blur_hash;
+        let _: bool = MediaItem.is_favorite;
+        let _: bool = MediaItem.is_archived;
+        let _: bool = MediaItem.is_trashed;
+        let _: Option<i64> = MediaItem.trashed_timestamp;
+        let _: bool = MediaItem.is_encrypted;
+        let _: Vec<String> = MediaItem.album_ids;
+        let _: Option<String> = MediaItem.device_folder;
+    }
+    {
+        let Upload = None::<crate::api::mirror::Upload>.unwrap();
+        let _: String = Upload.id;
+        let _: String = Upload.media_id;
+        let _: Option<i64> = Upload.message_id;
+        let _: Option<String> = Upload.file_id;
+        let _: Option<String> = Upload.hash_sha256;
+        let _: String = Upload.status;
+        let _: i64 = Upload.retry_count;
+        let _: Option<String> = Upload.last_error;
+        let _: i64 = Upload.uploaded_bytes;
+        let _: i64 = Upload.total_bytes;
+        let _: i64 = Upload.created_at;
+        let _: i64 = Upload.updated_at;
+    }
+    {
+        let UploadsSummary = None::<crate::api::mirror::UploadsSummary>.unwrap();
+        let _: i64 = UploadsSummary.queued_count;
+        let _: i64 = UploadsSummary.queued_bytes;
+        let _: i64 = UploadsSummary.uploading_count;
+        let _: i64 = UploadsSummary.uploading_bytes;
+        let _: i64 = UploadsSummary.failed_count;
+        let _: i64 = UploadsSummary.failed_bytes;
+        let _: i64 = UploadsSummary.backed_up_count;
+        let _: i64 = UploadsSummary.backed_up_bytes;
+    }
+    {
+        let VaultInfo = None::<crate::api::mirror::VaultInfo>.unwrap();
+        let _: Option<i64> = VaultInfo.channel_id;
+        let _: String = VaultInfo.channel_title;
+        let _: bool = VaultInfo.is_private;
+        let _: i64 = VaultInfo.total_storage_used_bytes;
+        let _: i64 = VaultInfo.total_backed_up_files;
+        let _: i64 = VaultInfo.last_sync_timestamp;
+    }
+};
 
 // Section: dart2rust
+
+impl SseDecode for std::collections::HashMap<String, bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <Vec<(String, bool)>>::sse_decode(deserializer);
+        return inner.into_iter().collect();
+    }
+}
 
 impl SseDecode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <Vec<u8>>::sse_decode(deserializer);
         return String::from_utf8(inner).unwrap();
+    }
+}
+
+impl SseDecode for crate::api::mirror::Album {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_coverMediaId = <Option<String>>::sse_decode(deserializer);
+        let mut var_isPinned = <bool>::sse_decode(deserializer);
+        let mut var_sourceType = <String>::sse_decode(deserializer);
+        let mut var_itemCount = <i64>::sse_decode(deserializer);
+        return crate::api::mirror::Album {
+            id: var_id,
+            name: var_name,
+            created_at: var_createdAt,
+            cover_media_id: var_coverMediaId,
+            is_pinned: var_isPinned,
+            source_type: var_sourceType,
+            item_count: var_itemCount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mirror::AppSettings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_autoBackupEnabled = <bool>::sse_decode(deserializer);
+        let mut var_backupOverWifiOnly = <bool>::sse_decode(deserializer);
+        let mut var_backupWhileChargingOnly = <bool>::sse_decode(deserializer);
+        let mut var_uploadOriginalQuality = <bool>::sse_decode(deserializer);
+        let mut var_folderBackupSettings =
+            <std::collections::HashMap<String, bool>>::sse_decode(deserializer);
+        let mut var_clientEncryptionEnabled = <bool>::sse_decode(deserializer);
+        let mut var_vaultPassphraseSet = <bool>::sse_decode(deserializer);
+        let mut var_gridColumnCount = <i64>::sse_decode(deserializer);
+        let mut var_theme = <String>::sse_decode(deserializer);
+        let mut var_telegramApiId = <Option<String>>::sse_decode(deserializer);
+        let mut var_telegramApiHash = <Option<String>>::sse_decode(deserializer);
+        let mut var_googleClientId = <Option<String>>::sse_decode(deserializer);
+        let mut var_googleClientSecret = <Option<String>>::sse_decode(deserializer);
+        return crate::api::mirror::AppSettings {
+            auto_backup_enabled: var_autoBackupEnabled,
+            backup_over_wifi_only: var_backupOverWifiOnly,
+            backup_while_charging_only: var_backupWhileChargingOnly,
+            upload_original_quality: var_uploadOriginalQuality,
+            folder_backup_settings: var_folderBackupSettings,
+            client_encryption_enabled: var_clientEncryptionEnabled,
+            vault_passphrase_set: var_vaultPassphraseSet,
+            grid_column_count: var_gridColumnCount,
+            theme: var_theme,
+            telegram_api_id: var_telegramApiId,
+            telegram_api_hash: var_telegramApiHash,
+            google_client_id: var_googleClientId,
+            google_client_secret: var_googleClientSecret,
+        };
+    }
+}
+
+impl SseDecode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::api::mirror::Collection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_coverMediaId = <Option<String>>::sse_decode(deserializer);
+        let mut var_isCloud = <bool>::sse_decode(deserializer);
+        let mut var_sortOrder = <i64>::sse_decode(deserializer);
+        let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_itemCount = <i64>::sse_decode(deserializer);
+        return crate::api::mirror::Collection {
+            id: var_id,
+            name: var_name,
+            cover_media_id: var_coverMediaId,
+            is_cloud: var_isCloud,
+            sort_order: var_sortOrder,
+            created_at: var_createdAt,
+            item_count: var_itemCount,
+        };
+    }
+}
+
+impl SseDecode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_f64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::mirror::Album> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::mirror::Album>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::mirror::Collection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::mirror::Collection>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::mirror::MediaItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::mirror::MediaItem>::sse_decode(deserializer));
+        }
+        return ans_;
     }
 }
 
@@ -133,6 +986,179 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<(String, bool)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<(String, bool)>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::mirror::Upload> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::mirror::Upload>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for crate::api::mirror::MediaItem {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_localIdentifier = <Option<String>>::sse_decode(deserializer);
+        let mut var_fileName = <String>::sse_decode(deserializer);
+        let mut var_filePath = <Option<String>>::sse_decode(deserializer);
+        let mut var_mimeType = <String>::sse_decode(deserializer);
+        let mut var_mediaType = <String>::sse_decode(deserializer);
+        let mut var_fileSizeBytes = <i64>::sse_decode(deserializer);
+        let mut var_sha256Hash = <String>::sse_decode(deserializer);
+        let mut var_dateTaken = <i64>::sse_decode(deserializer);
+        let mut var_dateAdded = <i64>::sse_decode(deserializer);
+        let mut var_width = <Option<i64>>::sse_decode(deserializer);
+        let mut var_height = <Option<i64>>::sse_decode(deserializer);
+        let mut var_orientation = <Option<i64>>::sse_decode(deserializer);
+        let mut var_durationMs = <Option<i64>>::sse_decode(deserializer);
+        let mut var_cameraMake = <Option<String>>::sse_decode(deserializer);
+        let mut var_cameraModel = <Option<String>>::sse_decode(deserializer);
+        let mut var_focalLength = <Option<f64>>::sse_decode(deserializer);
+        let mut var_aperture = <Option<f64>>::sse_decode(deserializer);
+        let mut var_iso = <Option<i64>>::sse_decode(deserializer);
+        let mut var_exposureTime = <Option<String>>::sse_decode(deserializer);
+        let mut var_latitude = <Option<f64>>::sse_decode(deserializer);
+        let mut var_longitude = <Option<f64>>::sse_decode(deserializer);
+        let mut var_geoCity = <Option<String>>::sse_decode(deserializer);
+        let mut var_geoCountry = <Option<String>>::sse_decode(deserializer);
+        let mut var_syncStatus = <String>::sse_decode(deserializer);
+        let mut var_uploadProgress = <Option<i64>>::sse_decode(deserializer);
+        let mut var_errorMessage = <Option<String>>::sse_decode(deserializer);
+        let mut var_tgChannelId = <Option<i64>>::sse_decode(deserializer);
+        let mut var_tgMessageId = <Option<i64>>::sse_decode(deserializer);
+        let mut var_tgFileId = <Option<String>>::sse_decode(deserializer);
+        let mut var_tgAccessHash = <Option<i64>>::sse_decode(deserializer);
+        let mut var_importedFromGooglePhotos = <bool>::sse_decode(deserializer);
+        let mut var_googlePhotosMediaId = <Option<String>>::sse_decode(deserializer);
+        let mut var_googleCleanupStatus = <Option<String>>::sse_decode(deserializer);
+        let mut var_thumbnailPath = <Option<String>>::sse_decode(deserializer);
+        let mut var_previewPath = <Option<String>>::sse_decode(deserializer);
+        let mut var_blurHash = <Option<String>>::sse_decode(deserializer);
+        let mut var_isFavorite = <bool>::sse_decode(deserializer);
+        let mut var_isArchived = <bool>::sse_decode(deserializer);
+        let mut var_isTrashed = <bool>::sse_decode(deserializer);
+        let mut var_trashedTimestamp = <Option<i64>>::sse_decode(deserializer);
+        let mut var_isEncrypted = <bool>::sse_decode(deserializer);
+        let mut var_albumIds = <Vec<String>>::sse_decode(deserializer);
+        let mut var_deviceFolder = <Option<String>>::sse_decode(deserializer);
+        return crate::api::mirror::MediaItem {
+            id: var_id,
+            local_identifier: var_localIdentifier,
+            file_name: var_fileName,
+            file_path: var_filePath,
+            mime_type: var_mimeType,
+            media_type: var_mediaType,
+            file_size_bytes: var_fileSizeBytes,
+            sha256_hash: var_sha256Hash,
+            date_taken: var_dateTaken,
+            date_added: var_dateAdded,
+            width: var_width,
+            height: var_height,
+            orientation: var_orientation,
+            duration_ms: var_durationMs,
+            camera_make: var_cameraMake,
+            camera_model: var_cameraModel,
+            focal_length: var_focalLength,
+            aperture: var_aperture,
+            iso: var_iso,
+            exposure_time: var_exposureTime,
+            latitude: var_latitude,
+            longitude: var_longitude,
+            geo_city: var_geoCity,
+            geo_country: var_geoCountry,
+            sync_status: var_syncStatus,
+            upload_progress: var_uploadProgress,
+            error_message: var_errorMessage,
+            tg_channel_id: var_tgChannelId,
+            tg_message_id: var_tgMessageId,
+            tg_file_id: var_tgFileId,
+            tg_access_hash: var_tgAccessHash,
+            imported_from_google_photos: var_importedFromGooglePhotos,
+            google_photos_media_id: var_googlePhotosMediaId,
+            google_cleanup_status: var_googleCleanupStatus,
+            thumbnail_path: var_thumbnailPath,
+            preview_path: var_previewPath,
+            blur_hash: var_blurHash,
+            is_favorite: var_isFavorite,
+            is_archived: var_isArchived,
+            is_trashed: var_isTrashed,
+            trashed_timestamp: var_trashedTimestamp,
+            is_encrypted: var_isEncrypted,
+            album_ids: var_albumIds,
+            device_folder: var_deviceFolder,
+        };
+    }
+}
+
+impl SseDecode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<f64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<i64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::api::mirror::MediaItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::mirror::MediaItem>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for (String, bool) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <bool>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
 impl SseDecode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -145,17 +1171,86 @@ impl SseDecode for () {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {}
 }
 
+impl SseDecode for crate::api::mirror::Upload {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_mediaId = <String>::sse_decode(deserializer);
+        let mut var_messageId = <Option<i64>>::sse_decode(deserializer);
+        let mut var_fileId = <Option<String>>::sse_decode(deserializer);
+        let mut var_hashSha256 = <Option<String>>::sse_decode(deserializer);
+        let mut var_status = <String>::sse_decode(deserializer);
+        let mut var_retryCount = <i64>::sse_decode(deserializer);
+        let mut var_lastError = <Option<String>>::sse_decode(deserializer);
+        let mut var_uploadedBytes = <i64>::sse_decode(deserializer);
+        let mut var_totalBytes = <i64>::sse_decode(deserializer);
+        let mut var_createdAt = <i64>::sse_decode(deserializer);
+        let mut var_updatedAt = <i64>::sse_decode(deserializer);
+        return crate::api::mirror::Upload {
+            id: var_id,
+            media_id: var_mediaId,
+            message_id: var_messageId,
+            file_id: var_fileId,
+            hash_sha256: var_hashSha256,
+            status: var_status,
+            retry_count: var_retryCount,
+            last_error: var_lastError,
+            uploaded_bytes: var_uploadedBytes,
+            total_bytes: var_totalBytes,
+            created_at: var_createdAt,
+            updated_at: var_updatedAt,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mirror::UploadsSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_queuedCount = <i64>::sse_decode(deserializer);
+        let mut var_queuedBytes = <i64>::sse_decode(deserializer);
+        let mut var_uploadingCount = <i64>::sse_decode(deserializer);
+        let mut var_uploadingBytes = <i64>::sse_decode(deserializer);
+        let mut var_failedCount = <i64>::sse_decode(deserializer);
+        let mut var_failedBytes = <i64>::sse_decode(deserializer);
+        let mut var_backedUpCount = <i64>::sse_decode(deserializer);
+        let mut var_backedUpBytes = <i64>::sse_decode(deserializer);
+        return crate::api::mirror::UploadsSummary {
+            queued_count: var_queuedCount,
+            queued_bytes: var_queuedBytes,
+            uploading_count: var_uploadingCount,
+            uploading_bytes: var_uploadingBytes,
+            failed_count: var_failedCount,
+            failed_bytes: var_failedBytes,
+            backed_up_count: var_backedUpCount,
+            backed_up_bytes: var_backedUpBytes,
+        };
+    }
+}
+
+impl SseDecode for crate::api::mirror::VaultInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_channelId = <Option<i64>>::sse_decode(deserializer);
+        let mut var_channelTitle = <String>::sse_decode(deserializer);
+        let mut var_isPrivate = <bool>::sse_decode(deserializer);
+        let mut var_totalStorageUsedBytes = <i64>::sse_decode(deserializer);
+        let mut var_totalBackedUpFiles = <i64>::sse_decode(deserializer);
+        let mut var_lastSyncTimestamp = <i64>::sse_decode(deserializer);
+        return crate::api::mirror::VaultInfo {
+            channel_id: var_channelId,
+            channel_title: var_channelTitle,
+            is_private: var_isPrivate,
+            total_storage_used_bytes: var_totalStorageUsedBytes,
+            total_backed_up_files: var_totalBackedUpFiles,
+            last_sync_timestamp: var_lastSyncTimestamp,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
-impl SseDecode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
     }
 }
 
@@ -168,7 +1263,8 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        2 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__db__get_media_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -181,17 +1277,391 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__db__add_caption_tag_impl(ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__db__add_to_collection_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__db__count_media_impl(ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__db__create_collection_impl(ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__db__get_caption_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__db__get_settings_impl(ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__db__get_vault_info_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__simple__greet_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__db__init_core_impl(ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__db__list_albums_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__db__list_collection_items_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__db__list_collections_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__db__list_timeline_impl(ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__db__list_uploads_by_status_impl(ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__db__remove_from_collection_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__db__save_caption_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__db__save_settings_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__db__search_by_hashtag_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__db__uploads_summary_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
 
 // Section: rust2dart
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::Album> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.created_at.into_into_dart().into_dart(),
+            self.0.cover_media_id.into_into_dart().into_dart(),
+            self.0.is_pinned.into_into_dart().into_dart(),
+            self.0.source_type.into_into_dart().into_dart(),
+            self.0.item_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::Album>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::Album>>
+    for crate::api::mirror::Album
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::Album> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::AppSettings> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.auto_backup_enabled.into_into_dart().into_dart(),
+            self.0.backup_over_wifi_only.into_into_dart().into_dart(),
+            self.0
+                .backup_while_charging_only
+                .into_into_dart()
+                .into_dart(),
+            self.0.upload_original_quality.into_into_dart().into_dart(),
+            self.0.folder_backup_settings.into_into_dart().into_dart(),
+            self.0
+                .client_encryption_enabled
+                .into_into_dart()
+                .into_dart(),
+            self.0.vault_passphrase_set.into_into_dart().into_dart(),
+            self.0.grid_column_count.into_into_dart().into_dart(),
+            self.0.theme.into_into_dart().into_dart(),
+            self.0.telegram_api_id.into_into_dart().into_dart(),
+            self.0.telegram_api_hash.into_into_dart().into_dart(),
+            self.0.google_client_id.into_into_dart().into_dart(),
+            self.0.google_client_secret.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::AppSettings>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::AppSettings>>
+    for crate::api::mirror::AppSettings
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::AppSettings> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::Collection> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.name.into_into_dart().into_dart(),
+            self.0.cover_media_id.into_into_dart().into_dart(),
+            self.0.is_cloud.into_into_dart().into_dart(),
+            self.0.sort_order.into_into_dart().into_dart(),
+            self.0.created_at.into_into_dart().into_dart(),
+            self.0.item_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::Collection>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::Collection>>
+    for crate::api::mirror::Collection
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::Collection> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::MediaItem> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.local_identifier.into_into_dart().into_dart(),
+            self.0.file_name.into_into_dart().into_dart(),
+            self.0.file_path.into_into_dart().into_dart(),
+            self.0.mime_type.into_into_dart().into_dart(),
+            self.0.media_type.into_into_dart().into_dart(),
+            self.0.file_size_bytes.into_into_dart().into_dart(),
+            self.0.sha256_hash.into_into_dart().into_dart(),
+            self.0.date_taken.into_into_dart().into_dart(),
+            self.0.date_added.into_into_dart().into_dart(),
+            self.0.width.into_into_dart().into_dart(),
+            self.0.height.into_into_dart().into_dart(),
+            self.0.orientation.into_into_dart().into_dart(),
+            self.0.duration_ms.into_into_dart().into_dart(),
+            self.0.camera_make.into_into_dart().into_dart(),
+            self.0.camera_model.into_into_dart().into_dart(),
+            self.0.focal_length.into_into_dart().into_dart(),
+            self.0.aperture.into_into_dart().into_dart(),
+            self.0.iso.into_into_dart().into_dart(),
+            self.0.exposure_time.into_into_dart().into_dart(),
+            self.0.latitude.into_into_dart().into_dart(),
+            self.0.longitude.into_into_dart().into_dart(),
+            self.0.geo_city.into_into_dart().into_dart(),
+            self.0.geo_country.into_into_dart().into_dart(),
+            self.0.sync_status.into_into_dart().into_dart(),
+            self.0.upload_progress.into_into_dart().into_dart(),
+            self.0.error_message.into_into_dart().into_dart(),
+            self.0.tg_channel_id.into_into_dart().into_dart(),
+            self.0.tg_message_id.into_into_dart().into_dart(),
+            self.0.tg_file_id.into_into_dart().into_dart(),
+            self.0.tg_access_hash.into_into_dart().into_dart(),
+            self.0
+                .imported_from_google_photos
+                .into_into_dart()
+                .into_dart(),
+            self.0.google_photos_media_id.into_into_dart().into_dart(),
+            self.0.google_cleanup_status.into_into_dart().into_dart(),
+            self.0.thumbnail_path.into_into_dart().into_dart(),
+            self.0.preview_path.into_into_dart().into_dart(),
+            self.0.blur_hash.into_into_dart().into_dart(),
+            self.0.is_favorite.into_into_dart().into_dart(),
+            self.0.is_archived.into_into_dart().into_dart(),
+            self.0.is_trashed.into_into_dart().into_dart(),
+            self.0.trashed_timestamp.into_into_dart().into_dart(),
+            self.0.is_encrypted.into_into_dart().into_dart(),
+            self.0.album_ids.into_into_dart().into_dart(),
+            self.0.device_folder.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::MediaItem>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::MediaItem>>
+    for crate::api::mirror::MediaItem
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::MediaItem> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::Upload> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.id.into_into_dart().into_dart(),
+            self.0.media_id.into_into_dart().into_dart(),
+            self.0.message_id.into_into_dart().into_dart(),
+            self.0.file_id.into_into_dart().into_dart(),
+            self.0.hash_sha256.into_into_dart().into_dart(),
+            self.0.status.into_into_dart().into_dart(),
+            self.0.retry_count.into_into_dart().into_dart(),
+            self.0.last_error.into_into_dart().into_dart(),
+            self.0.uploaded_bytes.into_into_dart().into_dart(),
+            self.0.total_bytes.into_into_dart().into_dart(),
+            self.0.created_at.into_into_dart().into_dart(),
+            self.0.updated_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::Upload>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::Upload>>
+    for crate::api::mirror::Upload
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::Upload> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::UploadsSummary> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.queued_count.into_into_dart().into_dart(),
+            self.0.queued_bytes.into_into_dart().into_dart(),
+            self.0.uploading_count.into_into_dart().into_dart(),
+            self.0.uploading_bytes.into_into_dart().into_dart(),
+            self.0.failed_count.into_into_dart().into_dart(),
+            self.0.failed_bytes.into_into_dart().into_dart(),
+            self.0.backed_up_count.into_into_dart().into_dart(),
+            self.0.backed_up_bytes.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::UploadsSummary>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::UploadsSummary>>
+    for crate::api::mirror::UploadsSummary
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::UploadsSummary> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::mirror::VaultInfo> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.channel_id.into_into_dart().into_dart(),
+            self.0.channel_title.into_into_dart().into_dart(),
+            self.0.is_private.into_into_dart().into_dart(),
+            self.0.total_storage_used_bytes.into_into_dart().into_dart(),
+            self.0.total_backed_up_files.into_into_dart().into_dart(),
+            self.0.last_sync_timestamp.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::mirror::VaultInfo>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::mirror::VaultInfo>>
+    for crate::api::mirror::VaultInfo
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::api::mirror::VaultInfo> {
+        self.into()
+    }
+}
+
+impl SseEncode for std::collections::HashMap<String, bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(String, bool)>>::sse_encode(self.into_iter().collect(), serializer);
+    }
+}
+
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<u8>>::sse_encode(self.into_bytes(), serializer);
+    }
+}
+
+impl SseEncode for crate::api::mirror::Album {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <i64>::sse_encode(self.created_at, serializer);
+        <Option<String>>::sse_encode(self.cover_media_id, serializer);
+        <bool>::sse_encode(self.is_pinned, serializer);
+        <String>::sse_encode(self.source_type, serializer);
+        <i64>::sse_encode(self.item_count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mirror::AppSettings {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.auto_backup_enabled, serializer);
+        <bool>::sse_encode(self.backup_over_wifi_only, serializer);
+        <bool>::sse_encode(self.backup_while_charging_only, serializer);
+        <bool>::sse_encode(self.upload_original_quality, serializer);
+        <std::collections::HashMap<String, bool>>::sse_encode(
+            self.folder_backup_settings,
+            serializer,
+        );
+        <bool>::sse_encode(self.client_encryption_enabled, serializer);
+        <bool>::sse_encode(self.vault_passphrase_set, serializer);
+        <i64>::sse_encode(self.grid_column_count, serializer);
+        <String>::sse_encode(self.theme, serializer);
+        <Option<String>>::sse_encode(self.telegram_api_id, serializer);
+        <Option<String>>::sse_encode(self.telegram_api_hash, serializer);
+        <Option<String>>::sse_encode(self.google_client_id, serializer);
+        <Option<String>>::sse_encode(self.google_client_secret, serializer);
+    }
+}
+
+impl SseEncode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::mirror::Collection {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <Option<String>>::sse_encode(self.cover_media_id, serializer);
+        <bool>::sse_encode(self.is_cloud, serializer);
+        <i64>::sse_encode(self.sort_order, serializer);
+        <i64>::sse_encode(self.created_at, serializer);
+        <i64>::sse_encode(self.item_count, serializer);
+    }
+}
+
+impl SseEncode for f64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_f64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::mirror::Album> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::mirror::Album>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::mirror::Collection> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::mirror::Collection>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::mirror::MediaItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::mirror::MediaItem>::sse_encode(item, serializer);
+        }
     }
 }
 
@@ -202,6 +1672,124 @@ impl SseEncode for Vec<u8> {
         for item in self {
             <u8>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for Vec<(String, bool)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, bool)>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::mirror::Upload> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::mirror::Upload>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for crate::api::mirror::MediaItem {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <Option<String>>::sse_encode(self.local_identifier, serializer);
+        <String>::sse_encode(self.file_name, serializer);
+        <Option<String>>::sse_encode(self.file_path, serializer);
+        <String>::sse_encode(self.mime_type, serializer);
+        <String>::sse_encode(self.media_type, serializer);
+        <i64>::sse_encode(self.file_size_bytes, serializer);
+        <String>::sse_encode(self.sha256_hash, serializer);
+        <i64>::sse_encode(self.date_taken, serializer);
+        <i64>::sse_encode(self.date_added, serializer);
+        <Option<i64>>::sse_encode(self.width, serializer);
+        <Option<i64>>::sse_encode(self.height, serializer);
+        <Option<i64>>::sse_encode(self.orientation, serializer);
+        <Option<i64>>::sse_encode(self.duration_ms, serializer);
+        <Option<String>>::sse_encode(self.camera_make, serializer);
+        <Option<String>>::sse_encode(self.camera_model, serializer);
+        <Option<f64>>::sse_encode(self.focal_length, serializer);
+        <Option<f64>>::sse_encode(self.aperture, serializer);
+        <Option<i64>>::sse_encode(self.iso, serializer);
+        <Option<String>>::sse_encode(self.exposure_time, serializer);
+        <Option<f64>>::sse_encode(self.latitude, serializer);
+        <Option<f64>>::sse_encode(self.longitude, serializer);
+        <Option<String>>::sse_encode(self.geo_city, serializer);
+        <Option<String>>::sse_encode(self.geo_country, serializer);
+        <String>::sse_encode(self.sync_status, serializer);
+        <Option<i64>>::sse_encode(self.upload_progress, serializer);
+        <Option<String>>::sse_encode(self.error_message, serializer);
+        <Option<i64>>::sse_encode(self.tg_channel_id, serializer);
+        <Option<i64>>::sse_encode(self.tg_message_id, serializer);
+        <Option<String>>::sse_encode(self.tg_file_id, serializer);
+        <Option<i64>>::sse_encode(self.tg_access_hash, serializer);
+        <bool>::sse_encode(self.imported_from_google_photos, serializer);
+        <Option<String>>::sse_encode(self.google_photos_media_id, serializer);
+        <Option<String>>::sse_encode(self.google_cleanup_status, serializer);
+        <Option<String>>::sse_encode(self.thumbnail_path, serializer);
+        <Option<String>>::sse_encode(self.preview_path, serializer);
+        <Option<String>>::sse_encode(self.blur_hash, serializer);
+        <bool>::sse_encode(self.is_favorite, serializer);
+        <bool>::sse_encode(self.is_archived, serializer);
+        <bool>::sse_encode(self.is_trashed, serializer);
+        <Option<i64>>::sse_encode(self.trashed_timestamp, serializer);
+        <bool>::sse_encode(self.is_encrypted, serializer);
+        <Vec<String>>::sse_encode(self.album_ids, serializer);
+        <Option<String>>::sse_encode(self.device_folder, serializer);
+    }
+}
+
+impl SseEncode for Option<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<f64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <f64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <i64>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::api::mirror::MediaItem> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::mirror::MediaItem>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for (String, bool) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <bool>::sse_encode(self.1, serializer);
     }
 }
 
@@ -217,17 +1805,54 @@ impl SseEncode for () {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {}
 }
 
+impl SseEncode for crate::api::mirror::Upload {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.media_id, serializer);
+        <Option<i64>>::sse_encode(self.message_id, serializer);
+        <Option<String>>::sse_encode(self.file_id, serializer);
+        <Option<String>>::sse_encode(self.hash_sha256, serializer);
+        <String>::sse_encode(self.status, serializer);
+        <i64>::sse_encode(self.retry_count, serializer);
+        <Option<String>>::sse_encode(self.last_error, serializer);
+        <i64>::sse_encode(self.uploaded_bytes, serializer);
+        <i64>::sse_encode(self.total_bytes, serializer);
+        <i64>::sse_encode(self.created_at, serializer);
+        <i64>::sse_encode(self.updated_at, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mirror::UploadsSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i64>::sse_encode(self.queued_count, serializer);
+        <i64>::sse_encode(self.queued_bytes, serializer);
+        <i64>::sse_encode(self.uploading_count, serializer);
+        <i64>::sse_encode(self.uploading_bytes, serializer);
+        <i64>::sse_encode(self.failed_count, serializer);
+        <i64>::sse_encode(self.failed_bytes, serializer);
+        <i64>::sse_encode(self.backed_up_count, serializer);
+        <i64>::sse_encode(self.backed_up_bytes, serializer);
+    }
+}
+
+impl SseEncode for crate::api::mirror::VaultInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<i64>>::sse_encode(self.channel_id, serializer);
+        <String>::sse_encode(self.channel_title, serializer);
+        <bool>::sse_encode(self.is_private, serializer);
+        <i64>::sse_encode(self.total_storage_used_bytes, serializer);
+        <i64>::sse_encode(self.total_backed_up_files, serializer);
+        <i64>::sse_encode(self.last_sync_timestamp, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for bool {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 

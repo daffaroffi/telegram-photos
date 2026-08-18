@@ -3,6 +3,8 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/db.dart';
+import 'api/mirror.dart';
 import 'api/simple.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -66,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1918914929;
+  int get rustContentHash => 1215630346;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,9 +80,56 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  void crateApiDbAddCaptionTag({required String mediaId, required String tag});
+
+  void crateApiDbAddToCollection({
+    required String collectionId,
+    required String mediaId,
+  });
+
+  PlatformInt64 crateApiDbCountMedia();
+
+  Collection crateApiDbCreateCollection({required String name});
+
+  String? crateApiDbGetCaption({required String mediaId});
+
+  Future<MediaItem?> crateApiDbGetMedia({required String id});
+
+  AppSettings crateApiDbGetSettings();
+
+  VaultInfo crateApiDbGetVaultInfo();
+
   String crateApiSimpleGreet({required String name});
 
   Future<void> crateApiSimpleInitApp();
+
+  void crateApiDbInitCore({required String dbPath});
+
+  List<Album> crateApiDbListAlbums();
+
+  List<MediaItem> crateApiDbListCollectionItems({required String collectionId});
+
+  List<Collection> crateApiDbListCollections();
+
+  List<MediaItem> crateApiDbListTimeline({
+    PlatformInt64? beforeTimestamp,
+    required PlatformInt64 limit,
+  });
+
+  List<Upload> crateApiDbListUploadsByStatus({required String status});
+
+  void crateApiDbRemoveFromCollection({
+    required String collectionId,
+    required String mediaId,
+  });
+
+  void crateApiDbSaveCaption({required String mediaId, required String text});
+
+  void crateApiDbSaveSettings({required AppSettings settings});
+
+  List<String> crateApiDbSearchByHashtag({required String tag});
+
+  UploadsSummary crateApiDbUploadsSummary();
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -92,13 +141,208 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  void crateApiDbAddCaptionTag({required String mediaId, required String tag}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(tag, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbAddCaptionTagConstMeta,
+        argValues: [mediaId, tag],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbAddCaptionTagConstMeta => const TaskConstMeta(
+    debugName: "add_caption_tag",
+    argNames: ["mediaId", "tag"],
+  );
+
+  @override
+  void crateApiDbAddToCollection({
+    required String collectionId,
+    required String mediaId,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(collectionId, serializer);
+          sse_encode_String(mediaId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbAddToCollectionConstMeta,
+        argValues: [collectionId, mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbAddToCollectionConstMeta => const TaskConstMeta(
+    debugName: "add_to_collection",
+    argNames: ["collectionId", "mediaId"],
+  );
+
+  @override
+  PlatformInt64 crateApiDbCountMedia() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_i_64,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbCountMediaConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbCountMediaConstMeta =>
+      const TaskConstMeta(debugName: "count_media", argNames: []);
+
+  @override
+  Collection crateApiDbCreateCollection({required String name}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(name, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_collection,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbCreateCollectionConstMeta,
+        argValues: [name],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbCreateCollectionConstMeta =>
+      const TaskConstMeta(debugName: "create_collection", argNames: ["name"]);
+
+  @override
+  String? crateApiDbGetCaption({required String mediaId}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbGetCaptionConstMeta,
+        argValues: [mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbGetCaptionConstMeta =>
+      const TaskConstMeta(debugName: "get_caption", argNames: ["mediaId"]);
+
+  @override
+  Future<MediaItem?> crateApiDbGetMedia({required String id}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_media_item,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbGetMediaConstMeta,
+        argValues: [id],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbGetMediaConstMeta =>
+      const TaskConstMeta(debugName: "get_media", argNames: ["id"]);
+
+  @override
+  AppSettings crateApiDbGetSettings() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbGetSettingsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbGetSettingsConstMeta =>
+      const TaskConstMeta(debugName: "get_settings", argNames: []);
+
+  @override
+  VaultInfo crateApiDbGetVaultInfo() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_vault_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbGetVaultInfoConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbGetVaultInfoConstMeta =>
+      const TaskConstMeta(debugName: "get_vault_info", argNames: []);
+
+  @override
   String crateApiSimpleGreet({required String name}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -123,7 +367,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 10,
             port: port_,
           );
         },
@@ -141,6 +385,288 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSimpleInitAppConstMeta =>
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
+  @override
+  void crateApiDbInitCore({required String dbPath}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dbPath, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbInitCoreConstMeta,
+        argValues: [dbPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbInitCoreConstMeta =>
+      const TaskConstMeta(debugName: "init_core", argNames: ["dbPath"]);
+
+  @override
+  List<Album> crateApiDbListAlbums() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_album,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbListAlbumsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbListAlbumsConstMeta =>
+      const TaskConstMeta(debugName: "list_albums", argNames: []);
+
+  @override
+  List<MediaItem> crateApiDbListCollectionItems({
+    required String collectionId,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(collectionId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_media_item,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbListCollectionItemsConstMeta,
+        argValues: [collectionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbListCollectionItemsConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_collection_items",
+        argNames: ["collectionId"],
+      );
+
+  @override
+  List<Collection> crateApiDbListCollections() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_collection,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbListCollectionsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbListCollectionsConstMeta =>
+      const TaskConstMeta(debugName: "list_collections", argNames: []);
+
+  @override
+  List<MediaItem> crateApiDbListTimeline({
+    PlatformInt64? beforeTimestamp,
+    required PlatformInt64 limit,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_box_autoadd_i_64(beforeTimestamp, serializer);
+          sse_encode_i_64(limit, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_media_item,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbListTimelineConstMeta,
+        argValues: [beforeTimestamp, limit],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbListTimelineConstMeta => const TaskConstMeta(
+    debugName: "list_timeline",
+    argNames: ["beforeTimestamp", "limit"],
+  );
+
+  @override
+  List<Upload> crateApiDbListUploadsByStatus({required String status}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(status, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_upload,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbListUploadsByStatusConstMeta,
+        argValues: [status],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbListUploadsByStatusConstMeta =>
+      const TaskConstMeta(
+        debugName: "list_uploads_by_status",
+        argNames: ["status"],
+      );
+
+  @override
+  void crateApiDbRemoveFromCollection({
+    required String collectionId,
+    required String mediaId,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(collectionId, serializer);
+          sse_encode_String(mediaId, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbRemoveFromCollectionConstMeta,
+        argValues: [collectionId, mediaId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbRemoveFromCollectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "remove_from_collection",
+        argNames: ["collectionId", "mediaId"],
+      );
+
+  @override
+  void crateApiDbSaveCaption({required String mediaId, required String text}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mediaId, serializer);
+          sse_encode_String(text, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbSaveCaptionConstMeta,
+        argValues: [mediaId, text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbSaveCaptionConstMeta => const TaskConstMeta(
+    debugName: "save_caption",
+    argNames: ["mediaId", "text"],
+  );
+
+  @override
+  void crateApiDbSaveSettings({required AppSettings settings}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_app_settings(settings, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbSaveSettingsConstMeta,
+        argValues: [settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbSaveSettingsConstMeta =>
+      const TaskConstMeta(debugName: "save_settings", argNames: ["settings"]);
+
+  @override
+  List<String> crateApiDbSearchByHashtag({required String tag}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(tag, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbSearchByHashtagConstMeta,
+        argValues: [tag],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbSearchByHashtagConstMeta =>
+      const TaskConstMeta(debugName: "search_by_hashtag", argNames: ["tag"]);
+
+  @override
+  UploadsSummary crateApiDbUploadsSummary() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_uploads_summary,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbUploadsSummaryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbUploadsSummaryConstMeta =>
+      const TaskConstMeta(debugName: "uploads_summary", argNames: []);
+
+  @protected
+  Map<String, bool> dco_decode_Map_String_bool_None(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Map.fromEntries(
+      dco_decode_list_record_string_bool(raw).map((e) => MapEntry(e.$1, e.$2)),
+    );
+  }
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -148,9 +674,232 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Album dco_decode_album(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return Album(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      createdAt: dco_decode_i_64(arr[2]),
+      coverMediaId: dco_decode_opt_String(arr[3]),
+      isPinned: dco_decode_bool(arr[4]),
+      sourceType: dco_decode_String(arr[5]),
+      itemCount: dco_decode_i_64(arr[6]),
+    );
+  }
+
+  @protected
+  AppSettings dco_decode_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return AppSettings(
+      autoBackupEnabled: dco_decode_bool(arr[0]),
+      backupOverWifiOnly: dco_decode_bool(arr[1]),
+      backupWhileChargingOnly: dco_decode_bool(arr[2]),
+      uploadOriginalQuality: dco_decode_bool(arr[3]),
+      folderBackupSettings: dco_decode_Map_String_bool_None(arr[4]),
+      clientEncryptionEnabled: dco_decode_bool(arr[5]),
+      vaultPassphraseSet: dco_decode_bool(arr[6]),
+      gridColumnCount: dco_decode_i_64(arr[7]),
+      theme: dco_decode_String(arr[8]),
+      telegramApiId: dco_decode_opt_String(arr[9]),
+      telegramApiHash: dco_decode_opt_String(arr[10]),
+      googleClientId: dco_decode_opt_String(arr[11]),
+      googleClientSecret: dco_decode_opt_String(arr[12]),
+    );
+  }
+
+  @protected
+  bool dco_decode_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_app_settings(raw);
+  }
+
+  @protected
+  double dco_decode_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  MediaItem dco_decode_box_autoadd_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_media_item(raw);
+  }
+
+  @protected
+  Collection dco_decode_collection(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return Collection(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      coverMediaId: dco_decode_opt_String(arr[2]),
+      isCloud: dco_decode_bool(arr[3]),
+      sortOrder: dco_decode_i_64(arr[4]),
+      createdAt: dco_decode_i_64(arr[5]),
+      itemCount: dco_decode_i_64(arr[6]),
+    );
+  }
+
+  @protected
+  double dco_decode_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as double;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<Album> dco_decode_list_album(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_album).toList();
+  }
+
+  @protected
+  List<Collection> dco_decode_list_collection(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_collection).toList();
+  }
+
+  @protected
+  List<MediaItem> dco_decode_list_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_media_item).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
+  }
+
+  @protected
+  List<(String, bool)> dco_decode_list_record_string_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_record_string_bool).toList();
+  }
+
+  @protected
+  List<Upload> dco_decode_list_upload(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_upload).toList();
+  }
+
+  @protected
+  MediaItem dco_decode_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 44)
+      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
+    return MediaItem(
+      id: dco_decode_String(arr[0]),
+      localIdentifier: dco_decode_opt_String(arr[1]),
+      fileName: dco_decode_String(arr[2]),
+      filePath: dco_decode_opt_String(arr[3]),
+      mimeType: dco_decode_String(arr[4]),
+      mediaType: dco_decode_String(arr[5]),
+      fileSizeBytes: dco_decode_i_64(arr[6]),
+      sha256Hash: dco_decode_String(arr[7]),
+      dateTaken: dco_decode_i_64(arr[8]),
+      dateAdded: dco_decode_i_64(arr[9]),
+      width: dco_decode_opt_box_autoadd_i_64(arr[10]),
+      height: dco_decode_opt_box_autoadd_i_64(arr[11]),
+      orientation: dco_decode_opt_box_autoadd_i_64(arr[12]),
+      durationMs: dco_decode_opt_box_autoadd_i_64(arr[13]),
+      cameraMake: dco_decode_opt_String(arr[14]),
+      cameraModel: dco_decode_opt_String(arr[15]),
+      focalLength: dco_decode_opt_box_autoadd_f_64(arr[16]),
+      aperture: dco_decode_opt_box_autoadd_f_64(arr[17]),
+      iso: dco_decode_opt_box_autoadd_i_64(arr[18]),
+      exposureTime: dco_decode_opt_String(arr[19]),
+      latitude: dco_decode_opt_box_autoadd_f_64(arr[20]),
+      longitude: dco_decode_opt_box_autoadd_f_64(arr[21]),
+      geoCity: dco_decode_opt_String(arr[22]),
+      geoCountry: dco_decode_opt_String(arr[23]),
+      syncStatus: dco_decode_String(arr[24]),
+      uploadProgress: dco_decode_opt_box_autoadd_i_64(arr[25]),
+      errorMessage: dco_decode_opt_String(arr[26]),
+      tgChannelId: dco_decode_opt_box_autoadd_i_64(arr[27]),
+      tgMessageId: dco_decode_opt_box_autoadd_i_64(arr[28]),
+      tgFileId: dco_decode_opt_String(arr[29]),
+      tgAccessHash: dco_decode_opt_box_autoadd_i_64(arr[30]),
+      importedFromGooglePhotos: dco_decode_bool(arr[31]),
+      googlePhotosMediaId: dco_decode_opt_String(arr[32]),
+      googleCleanupStatus: dco_decode_opt_String(arr[33]),
+      thumbnailPath: dco_decode_opt_String(arr[34]),
+      previewPath: dco_decode_opt_String(arr[35]),
+      blurHash: dco_decode_opt_String(arr[36]),
+      isFavorite: dco_decode_bool(arr[37]),
+      isArchived: dco_decode_bool(arr[38]),
+      isTrashed: dco_decode_bool(arr[39]),
+      trashedTimestamp: dco_decode_opt_box_autoadd_i_64(arr[40]),
+      isEncrypted: dco_decode_bool(arr[41]),
+      albumIds: dco_decode_list_String(arr[42]),
+      deviceFolder: dco_decode_opt_String(arr[43]),
+    );
+  }
+
+  @protected
+  String? dco_decode_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  MediaItem? dco_decode_opt_box_autoadd_media_item(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_media_item(raw);
+  }
+
+  @protected
+  (String, bool) dco_decode_record_string_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (dco_decode_String(arr[0]), dco_decode_bool(arr[1]));
   }
 
   @protected
@@ -166,6 +915,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Upload dco_decode_upload(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return Upload(
+      id: dco_decode_String(arr[0]),
+      mediaId: dco_decode_String(arr[1]),
+      messageId: dco_decode_opt_box_autoadd_i_64(arr[2]),
+      fileId: dco_decode_opt_String(arr[3]),
+      hashSha256: dco_decode_opt_String(arr[4]),
+      status: dco_decode_String(arr[5]),
+      retryCount: dco_decode_i_64(arr[6]),
+      lastError: dco_decode_opt_String(arr[7]),
+      uploadedBytes: dco_decode_i_64(arr[8]),
+      totalBytes: dco_decode_i_64(arr[9]),
+      createdAt: dco_decode_i_64(arr[10]),
+      updatedAt: dco_decode_i_64(arr[11]),
+    );
+  }
+
+  @protected
+  UploadsSummary dco_decode_uploads_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return UploadsSummary(
+      queuedCount: dco_decode_i_64(arr[0]),
+      queuedBytes: dco_decode_i_64(arr[1]),
+      uploadingCount: dco_decode_i_64(arr[2]),
+      uploadingBytes: dco_decode_i_64(arr[3]),
+      failedCount: dco_decode_i_64(arr[4]),
+      failedBytes: dco_decode_i_64(arr[5]),
+      backedUpCount: dco_decode_i_64(arr[6]),
+      backedUpBytes: dco_decode_i_64(arr[7]),
+    );
+  }
+
+  @protected
+  VaultInfo dco_decode_vault_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return VaultInfo(
+      channelId: dco_decode_opt_box_autoadd_i_64(arr[0]),
+      channelTitle: dco_decode_String(arr[1]),
+      isPrivate: dco_decode_bool(arr[2]),
+      totalStorageUsedBytes: dco_decode_i_64(arr[3]),
+      totalBackedUpFiles: dco_decode_i_64(arr[4]),
+      lastSyncTimestamp: dco_decode_i_64(arr[5]),
+    );
+  }
+
+  @protected
+  Map<String, bool> sse_decode_Map_String_bool_None(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_list_record_string_bool(deserializer);
+    return Map.fromEntries(inner.map((e) => MapEntry(e.$1, e.$2)));
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
@@ -173,10 +987,354 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Album sse_decode_album(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_coverMediaId = sse_decode_opt_String(deserializer);
+    var var_isPinned = sse_decode_bool(deserializer);
+    var var_sourceType = sse_decode_String(deserializer);
+    var var_itemCount = sse_decode_i_64(deserializer);
+    return Album(
+      id: var_id,
+      name: var_name,
+      createdAt: var_createdAt,
+      coverMediaId: var_coverMediaId,
+      isPinned: var_isPinned,
+      sourceType: var_sourceType,
+      itemCount: var_itemCount,
+    );
+  }
+
+  @protected
+  AppSettings sse_decode_app_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_autoBackupEnabled = sse_decode_bool(deserializer);
+    var var_backupOverWifiOnly = sse_decode_bool(deserializer);
+    var var_backupWhileChargingOnly = sse_decode_bool(deserializer);
+    var var_uploadOriginalQuality = sse_decode_bool(deserializer);
+    var var_folderBackupSettings = sse_decode_Map_String_bool_None(
+      deserializer,
+    );
+    var var_clientEncryptionEnabled = sse_decode_bool(deserializer);
+    var var_vaultPassphraseSet = sse_decode_bool(deserializer);
+    var var_gridColumnCount = sse_decode_i_64(deserializer);
+    var var_theme = sse_decode_String(deserializer);
+    var var_telegramApiId = sse_decode_opt_String(deserializer);
+    var var_telegramApiHash = sse_decode_opt_String(deserializer);
+    var var_googleClientId = sse_decode_opt_String(deserializer);
+    var var_googleClientSecret = sse_decode_opt_String(deserializer);
+    return AppSettings(
+      autoBackupEnabled: var_autoBackupEnabled,
+      backupOverWifiOnly: var_backupOverWifiOnly,
+      backupWhileChargingOnly: var_backupWhileChargingOnly,
+      uploadOriginalQuality: var_uploadOriginalQuality,
+      folderBackupSettings: var_folderBackupSettings,
+      clientEncryptionEnabled: var_clientEncryptionEnabled,
+      vaultPassphraseSet: var_vaultPassphraseSet,
+      gridColumnCount: var_gridColumnCount,
+      theme: var_theme,
+      telegramApiId: var_telegramApiId,
+      telegramApiHash: var_telegramApiHash,
+      googleClientId: var_googleClientId,
+      googleClientSecret: var_googleClientSecret,
+    );
+  }
+
+  @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  AppSettings sse_decode_box_autoadd_app_settings(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_app_settings(deserializer));
+  }
+
+  @protected
+  double sse_decode_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_f_64(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  MediaItem sse_decode_box_autoadd_media_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_media_item(deserializer));
+  }
+
+  @protected
+  Collection sse_decode_collection(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_coverMediaId = sse_decode_opt_String(deserializer);
+    var var_isCloud = sse_decode_bool(deserializer);
+    var var_sortOrder = sse_decode_i_64(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_itemCount = sse_decode_i_64(deserializer);
+    return Collection(
+      id: var_id,
+      name: var_name,
+      coverMediaId: var_coverMediaId,
+      isCloud: var_isCloud,
+      sortOrder: var_sortOrder,
+      createdAt: var_createdAt,
+      itemCount: var_itemCount,
+    );
+  }
+
+  @protected
+  double sse_decode_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getFloat64();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Album> sse_decode_list_album(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Album>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_album(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Collection> sse_decode_list_collection(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Collection>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_collection(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<MediaItem> sse_decode_list_media_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MediaItem>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_media_item(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
+  }
+
+  @protected
+  List<(String, bool)> sse_decode_list_record_string_bool(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, bool)>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_record_string_bool(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<Upload> sse_decode_list_upload(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <Upload>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_upload(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  MediaItem sse_decode_media_item(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_localIdentifier = sse_decode_opt_String(deserializer);
+    var var_fileName = sse_decode_String(deserializer);
+    var var_filePath = sse_decode_opt_String(deserializer);
+    var var_mimeType = sse_decode_String(deserializer);
+    var var_mediaType = sse_decode_String(deserializer);
+    var var_fileSizeBytes = sse_decode_i_64(deserializer);
+    var var_sha256Hash = sse_decode_String(deserializer);
+    var var_dateTaken = sse_decode_i_64(deserializer);
+    var var_dateAdded = sse_decode_i_64(deserializer);
+    var var_width = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_orientation = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_durationMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_cameraMake = sse_decode_opt_String(deserializer);
+    var var_cameraModel = sse_decode_opt_String(deserializer);
+    var var_focalLength = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_aperture = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_iso = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_exposureTime = sse_decode_opt_String(deserializer);
+    var var_latitude = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_longitude = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_geoCity = sse_decode_opt_String(deserializer);
+    var var_geoCountry = sse_decode_opt_String(deserializer);
+    var var_syncStatus = sse_decode_String(deserializer);
+    var var_uploadProgress = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_errorMessage = sse_decode_opt_String(deserializer);
+    var var_tgChannelId = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_tgMessageId = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_tgFileId = sse_decode_opt_String(deserializer);
+    var var_tgAccessHash = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_importedFromGooglePhotos = sse_decode_bool(deserializer);
+    var var_googlePhotosMediaId = sse_decode_opt_String(deserializer);
+    var var_googleCleanupStatus = sse_decode_opt_String(deserializer);
+    var var_thumbnailPath = sse_decode_opt_String(deserializer);
+    var var_previewPath = sse_decode_opt_String(deserializer);
+    var var_blurHash = sse_decode_opt_String(deserializer);
+    var var_isFavorite = sse_decode_bool(deserializer);
+    var var_isArchived = sse_decode_bool(deserializer);
+    var var_isTrashed = sse_decode_bool(deserializer);
+    var var_trashedTimestamp = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_isEncrypted = sse_decode_bool(deserializer);
+    var var_albumIds = sse_decode_list_String(deserializer);
+    var var_deviceFolder = sse_decode_opt_String(deserializer);
+    return MediaItem(
+      id: var_id,
+      localIdentifier: var_localIdentifier,
+      fileName: var_fileName,
+      filePath: var_filePath,
+      mimeType: var_mimeType,
+      mediaType: var_mediaType,
+      fileSizeBytes: var_fileSizeBytes,
+      sha256Hash: var_sha256Hash,
+      dateTaken: var_dateTaken,
+      dateAdded: var_dateAdded,
+      width: var_width,
+      height: var_height,
+      orientation: var_orientation,
+      durationMs: var_durationMs,
+      cameraMake: var_cameraMake,
+      cameraModel: var_cameraModel,
+      focalLength: var_focalLength,
+      aperture: var_aperture,
+      iso: var_iso,
+      exposureTime: var_exposureTime,
+      latitude: var_latitude,
+      longitude: var_longitude,
+      geoCity: var_geoCity,
+      geoCountry: var_geoCountry,
+      syncStatus: var_syncStatus,
+      uploadProgress: var_uploadProgress,
+      errorMessage: var_errorMessage,
+      tgChannelId: var_tgChannelId,
+      tgMessageId: var_tgMessageId,
+      tgFileId: var_tgFileId,
+      tgAccessHash: var_tgAccessHash,
+      importedFromGooglePhotos: var_importedFromGooglePhotos,
+      googlePhotosMediaId: var_googlePhotosMediaId,
+      googleCleanupStatus: var_googleCleanupStatus,
+      thumbnailPath: var_thumbnailPath,
+      previewPath: var_previewPath,
+      blurHash: var_blurHash,
+      isFavorite: var_isFavorite,
+      isArchived: var_isArchived,
+      isTrashed: var_isTrashed,
+      trashedTimestamp: var_trashedTimestamp,
+      isEncrypted: var_isEncrypted,
+      albumIds: var_albumIds,
+      deviceFolder: var_deviceFolder,
+    );
+  }
+
+  @protected
+  String? sse_decode_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  MediaItem? sse_decode_opt_box_autoadd_media_item(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_media_item(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  (String, bool) sse_decode_record_string_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_bool(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -191,21 +1349,235 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Upload sse_decode_upload(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_mediaId = sse_decode_String(deserializer);
+    var var_messageId = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_fileId = sse_decode_opt_String(deserializer);
+    var var_hashSha256 = sse_decode_opt_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_retryCount = sse_decode_i_64(deserializer);
+    var var_lastError = sse_decode_opt_String(deserializer);
+    var var_uploadedBytes = sse_decode_i_64(deserializer);
+    var var_totalBytes = sse_decode_i_64(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
+    var var_updatedAt = sse_decode_i_64(deserializer);
+    return Upload(
+      id: var_id,
+      mediaId: var_mediaId,
+      messageId: var_messageId,
+      fileId: var_fileId,
+      hashSha256: var_hashSha256,
+      status: var_status,
+      retryCount: var_retryCount,
+      lastError: var_lastError,
+      uploadedBytes: var_uploadedBytes,
+      totalBytes: var_totalBytes,
+      createdAt: var_createdAt,
+      updatedAt: var_updatedAt,
+    );
+  }
+
+  @protected
+  UploadsSummary sse_decode_uploads_summary(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_queuedCount = sse_decode_i_64(deserializer);
+    var var_queuedBytes = sse_decode_i_64(deserializer);
+    var var_uploadingCount = sse_decode_i_64(deserializer);
+    var var_uploadingBytes = sse_decode_i_64(deserializer);
+    var var_failedCount = sse_decode_i_64(deserializer);
+    var var_failedBytes = sse_decode_i_64(deserializer);
+    var var_backedUpCount = sse_decode_i_64(deserializer);
+    var var_backedUpBytes = sse_decode_i_64(deserializer);
+    return UploadsSummary(
+      queuedCount: var_queuedCount,
+      queuedBytes: var_queuedBytes,
+      uploadingCount: var_uploadingCount,
+      uploadingBytes: var_uploadingBytes,
+      failedCount: var_failedCount,
+      failedBytes: var_failedBytes,
+      backedUpCount: var_backedUpCount,
+      backedUpBytes: var_backedUpBytes,
+    );
+  }
+
+  @protected
+  VaultInfo sse_decode_vault_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_channelId = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_channelTitle = sse_decode_String(deserializer);
+    var var_isPrivate = sse_decode_bool(deserializer);
+    var var_totalStorageUsedBytes = sse_decode_i_64(deserializer);
+    var var_totalBackedUpFiles = sse_decode_i_64(deserializer);
+    var var_lastSyncTimestamp = sse_decode_i_64(deserializer);
+    return VaultInfo(
+      channelId: var_channelId,
+      channelTitle: var_channelTitle,
+      isPrivate: var_isPrivate,
+      totalStorageUsedBytes: var_totalStorageUsedBytes,
+      totalBackedUpFiles: var_totalBackedUpFiles,
+      lastSyncTimestamp: var_lastSyncTimestamp,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
+  void sse_encode_Map_String_bool_None(
+    Map<String, bool> self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
+    sse_encode_list_record_string_bool(
+      self.entries.map((e) => (e.key, e.value)).toList(),
+      serializer,
+    );
   }
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_album(Album self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_opt_String(self.coverMediaId, serializer);
+    sse_encode_bool(self.isPinned, serializer);
+    sse_encode_String(self.sourceType, serializer);
+    sse_encode_i_64(self.itemCount, serializer);
+  }
+
+  @protected
+  void sse_encode_app_settings(AppSettings self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.autoBackupEnabled, serializer);
+    sse_encode_bool(self.backupOverWifiOnly, serializer);
+    sse_encode_bool(self.backupWhileChargingOnly, serializer);
+    sse_encode_bool(self.uploadOriginalQuality, serializer);
+    sse_encode_Map_String_bool_None(self.folderBackupSettings, serializer);
+    sse_encode_bool(self.clientEncryptionEnabled, serializer);
+    sse_encode_bool(self.vaultPassphraseSet, serializer);
+    sse_encode_i_64(self.gridColumnCount, serializer);
+    sse_encode_String(self.theme, serializer);
+    sse_encode_opt_String(self.telegramApiId, serializer);
+    sse_encode_opt_String(self.telegramApiHash, serializer);
+    sse_encode_opt_String(self.googleClientId, serializer);
+    sse_encode_opt_String(self.googleClientSecret, serializer);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_app_settings(
+    AppSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_app_settings(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_media_item(
+    MediaItem self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_media_item(self, serializer);
+  }
+
+  @protected
+  void sse_encode_collection(Collection self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.coverMediaId, serializer);
+    sse_encode_bool(self.isCloud, serializer);
+    sse_encode_i_64(self.sortOrder, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_i_64(self.itemCount, serializer);
+  }
+
+  @protected
+  void sse_encode_f_64(double self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putFloat64(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_album(List<Album> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_album(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_collection(
+    List<Collection> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_collection(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_media_item(
+    List<MediaItem> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_media_item(item, serializer);
+    }
   }
 
   @protected
@@ -216,6 +1588,132 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putUint8List(self);
+  }
+
+  @protected
+  void sse_encode_list_record_string_bool(
+    List<(String, bool)> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_record_string_bool(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_upload(List<Upload> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_upload(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_media_item(MediaItem self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_opt_String(self.localIdentifier, serializer);
+    sse_encode_String(self.fileName, serializer);
+    sse_encode_opt_String(self.filePath, serializer);
+    sse_encode_String(self.mimeType, serializer);
+    sse_encode_String(self.mediaType, serializer);
+    sse_encode_i_64(self.fileSizeBytes, serializer);
+    sse_encode_String(self.sha256Hash, serializer);
+    sse_encode_i_64(self.dateTaken, serializer);
+    sse_encode_i_64(self.dateAdded, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.width, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.height, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.orientation, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.durationMs, serializer);
+    sse_encode_opt_String(self.cameraMake, serializer);
+    sse_encode_opt_String(self.cameraModel, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.focalLength, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.aperture, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.iso, serializer);
+    sse_encode_opt_String(self.exposureTime, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.latitude, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.longitude, serializer);
+    sse_encode_opt_String(self.geoCity, serializer);
+    sse_encode_opt_String(self.geoCountry, serializer);
+    sse_encode_String(self.syncStatus, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.uploadProgress, serializer);
+    sse_encode_opt_String(self.errorMessage, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.tgChannelId, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.tgMessageId, serializer);
+    sse_encode_opt_String(self.tgFileId, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.tgAccessHash, serializer);
+    sse_encode_bool(self.importedFromGooglePhotos, serializer);
+    sse_encode_opt_String(self.googlePhotosMediaId, serializer);
+    sse_encode_opt_String(self.googleCleanupStatus, serializer);
+    sse_encode_opt_String(self.thumbnailPath, serializer);
+    sse_encode_opt_String(self.previewPath, serializer);
+    sse_encode_opt_String(self.blurHash, serializer);
+    sse_encode_bool(self.isFavorite, serializer);
+    sse_encode_bool(self.isArchived, serializer);
+    sse_encode_bool(self.isTrashed, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.trashedTimestamp, serializer);
+    sse_encode_bool(self.isEncrypted, serializer);
+    sse_encode_list_String(self.albumIds, serializer);
+    sse_encode_opt_String(self.deviceFolder, serializer);
+  }
+
+  @protected
+  void sse_encode_opt_String(String? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_media_item(
+    MediaItem? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_media_item(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_record_string_bool(
+    (String, bool) self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.$1, serializer);
+    sse_encode_bool(self.$2, serializer);
   }
 
   @protected
@@ -230,14 +1728,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
+  void sse_encode_upload(Upload self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.mediaId, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.messageId, serializer);
+    sse_encode_opt_String(self.fileId, serializer);
+    sse_encode_opt_String(self.hashSha256, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_i_64(self.retryCount, serializer);
+    sse_encode_opt_String(self.lastError, serializer);
+    sse_encode_i_64(self.uploadedBytes, serializer);
+    sse_encode_i_64(self.totalBytes, serializer);
+    sse_encode_i_64(self.createdAt, serializer);
+    sse_encode_i_64(self.updatedAt, serializer);
   }
 
   @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
+  void sse_encode_uploads_summary(
+    UploadsSummary self,
+    SseSerializer serializer,
+  ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
+    sse_encode_i_64(self.queuedCount, serializer);
+    sse_encode_i_64(self.queuedBytes, serializer);
+    sse_encode_i_64(self.uploadingCount, serializer);
+    sse_encode_i_64(self.uploadingBytes, serializer);
+    sse_encode_i_64(self.failedCount, serializer);
+    sse_encode_i_64(self.failedBytes, serializer);
+    sse_encode_i_64(self.backedUpCount, serializer);
+    sse_encode_i_64(self.backedUpBytes, serializer);
+  }
+
+  @protected
+  void sse_encode_vault_info(VaultInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_i_64(self.channelId, serializer);
+    sse_encode_String(self.channelTitle, serializer);
+    sse_encode_bool(self.isPrivate, serializer);
+    sse_encode_i_64(self.totalStorageUsedBytes, serializer);
+    sse_encode_i_64(self.totalBackedUpFiles, serializer);
+    sse_encode_i_64(self.lastSyncTimestamp, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
   }
 }
