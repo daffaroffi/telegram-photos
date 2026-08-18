@@ -9,9 +9,17 @@
 use flutter_rust_bridge::frb;
 
 pub use telegram_photos_core::models::{
-    Album, AppSettings, Collection, MediaItem, TelegramUser, Upload, UploadError, UploadsSummary,
+    Album, AppSettings, AuthCodeResult, Collection, MediaItem, TelegramUser, Upload, UploadError, UploadsSummary,
     VaultInfo,
 };
+
+#[frb(mirror(AuthCodeResult))]
+pub struct _AuthCodeResult {
+    pub status: String,
+    pub code_length: Option<i32>,
+    pub resend_after_seconds: Option<i32>,
+    pub delivery: Option<String>,
+}
 
 #[frb(mirror(MediaItem))]
 pub struct _MediaItem {

@@ -39,6 +39,10 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 val folder = call.argument<String>("folder") ?: ""
                 result.success(scanMediaStore(folder))
             }
+            "getAppDataDir" -> {
+                val ctx = appContext ?: return result.error("NO_CONTEXT", "No context", null)
+                result.success(ctx.filesDir.absolutePath)
+            }
             "generateThumbnails" -> {
                 val ids = call.argument<List<String>>("ids") ?: emptyList()
                 result.success(generateThumbnails(ids))
