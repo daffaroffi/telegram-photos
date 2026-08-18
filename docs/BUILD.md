@@ -1,151 +1,105 @@
-# Panduan Build & Instalasi
+# Build & Installation Guide
 
-## Prasyarat
+## Prerequisites
 
-| Tool | Versi minimum | Catatan |
+| Tool | Minimum Version | Notes |
 |---|---|---|
-| Node.js | 20+ | `npm install` untuk frontend |
-| Rust | stable (1.80+) | `rustup` + target Android |
-| Java | 17+ (disarankan 21) | Untuk Gradle Android |
-| Android SDK | platform 36 | `ANDROID_HOME` harus disetel |
-| Android NDK | 28.x | Digunakan toolchain clang untuk `cargo` |
+| Flutter SDK | 3.22+ | `flutter --version` to check |
+| Rust | stable | `rustup update stable` |
+| Android SDK | API 34 | Via Android Studio |
+| Android NDK | 28.x | Bundled with SDK |
+| Java | 17+ | Required by Gradle |
+| Node.js | 20+ | Only for old Tauri build (deprecated) |
 
-Target Rust Android yang dibutuhkan:
-
-```bash
-rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-```
-
----
-
-## 1. Instalasi dependensi
+## Development Build
 
 ```bash
-cd app
-npm install
+# 1. Navigate to Flutter project
+cd app_flutter
+
+# 2. Install dependencies
+flutter pub get
+
+# 3. Generate FRB bindings (after any Rust API change)
+flutter_rust_bridge_codegen generate
+
+# 4. Build debug APK
+flutter build apk --debug
+
+# 5. Install on connected device/emulator
+adb install build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-## 2. Build APK Android
+## Release Build
 
 ```bash
-export ANDROID_HOME="$HOME/Android/Sdk"        # Windows: "$LOCALAPPDATA/Android/Sdk"
-export ANDROID_SDK_ROOT="$ANDROID_HOME"
+# Build release APK (split per ABI for smaller size)
+flutter build apk --release --split-per-abi
 
-# Release, ABI arm64 saja (paling umum untuk perangkat modern)
-npx tauri android build --target aarch64
-
-# Semua ABI (universal) — lebih besar tapi jalan di semua perangkat
-npx tauri android build
+# Output locations:
+# build/app/outputs/flutter-apk/app-arm64-v8a-release.apk  (~15-25 MB)
+# build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+# build/app/outputs/flutter-apk/app-x86_64-release.apk
 ```
 
-Hasil:
+## Signing
 
+For release builds, configure signing in `android/app/build.gradle`:
+
+```groovy
+android {
+    signingConfigs {
+        release {
+            storeFile file('path/to/keystore.jks')
+            storePassword 'your-store-password'
+            keyAlias 'your-key-alias'
+            keyPassword 'your-key-password'
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
 ```
-app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-app/src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
-```
 
-> **Frontend assets**: `app/dist` (hasil `vite build`, dijalankan otomatis oleh
-> `beforeBuildCommand`) didaftarkan sebagai asset source dir di
-> `gen/android/app/build.gradle.kts` — ikut ter-bundle ke APK otomatis.
-> `gen/android/app/src/main/jniLibs/` (hasil build `.so`) di-ignore git dan
-> dihasilkan kembali saat build.
-
-> **Workaround — gradle gagal spawn `npm` di Windows** (error
-> `A problem occurred starting process 'command 'npm.bat''`): build `.so`
-> manual lalu assemble dengan skip task rust:
-> ```bash
-> cd app/src-tauri
-> # set NDK toolchain di PATH + CC_aarch64_linux_android / AR_aarch64_linux_android
-> cargo build --release --target aarch64-linux-android
-> mkdir -p gen/android/app/src/main/jniLibs/arm64-v8a
-> cp target/aarch64-linux-android/release/libtelegram_photos_lib.so \
->    gen/android/app/src/main/jniLibs/arm64-v8a/
-> cd gen/android
-> ./gradlew :app:assembleUniversalRelease \
->   -x rustBuildArm64Release -x rustBuildArmRelease \
->   -x rustBuildX86Release -x rustBuildX86_64Release -x rustBuildUniversalRelease
-> ```
-
-### Signing (wajib agar bisa diinstal)
-
-Tauri tidak menandatangani APK release secara otomatis. Buat keystore sekali:
+Generate a keystore:
 
 ```bash
-keytool -genkeypair -v \
-  -keystore ~/telegramphotos.keystore \
-  -alias telegramphotos \
-  -keyalg RSA -keysize 2048 -validity 10000 \
-  -storepass GANTI_DENGAN_PASSWORD_ANDAMU -keypass GANTI_DENGAN_PASSWORD_ANDAMU \
-  -dname "CN=TelegramPhotos, O=TelegramPhotos, C=ID"
+keytool -genkey -v -keystore keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key
 ```
 
-Lalu sign APK unsigned:
+## Troubleshooting
+
+### Build fails with "clang.exe not found"
+
+NDK path mismatch. Ensure `ANDROID_NDK_HOME` points to the correct NDK version:
 
 ```bash
-BT="$ANDROID_HOME/build-tools/37.0.0"
-"$BT/apksigner" sign \
-  --ks ~/telegramphotos.keystore \
-  --ks-key-alias telegramphotos \
-  --ks-pass pass:GANTI_DENGAN_PASSWORD_ANDAMU --key-pass pass:GANTI_DENGAN_PASSWORD_ANDAMU \
-  --out TelegramPhotos-release.apk \
-  app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-
-"$BT/apksigner" verify TelegramPhotos-release.apk
+ls $ANDROID_HOME/ndk/
+# Use the version listed there
 ```
 
-> Simpan keystore & password di tempat aman (jangan commit password ke repo
-> publik). Keystore yang sama harus dipakai untuk semua update agar aplikasi
-> bisa di-update di perangkat.
+### FRB codegen produces opaque types
 
-### APK debug (tanpa signing manual)
+If types from `telegram_photos_core` appear as `RustOpaque` in Dart, add a mirror in `app_flutter/rust/src/api/mirror.rs`. See [FRB external types guide](https://cjycode.com/flutter_rust_bridge/guides/third-party/manual/external-types).
 
-```bash
-npx tauri android build --debug --target aarch64
-# hasil: .../apk/universal/debug/app-universal-debug.apk (tertanda debug)
-```
+### Cargokit doesn't produce .so files
 
-## 3. Menjalankan di perangkat
+The cargokit gradle plugin needs `FLUTTER_ROOT` set. When running `flutter build`, this is automatic. When running `./gradlew` directly, ensure `local.properties` has the correct Flutter SDK path.
 
-```bash
-# Dengan perangkat terhubung via USB (USB debugging aktif)
-npx tauri android dev
+### core2 yanked error
 
-# Atau instal APK hasil build
-adb install -r TelegramPhotos-release.apk
-```
+Grammers depends on `core2 v0.4.0` which is yanked on crates.io. We vendor a stub in `vendor/core2/`. If the stub causes runtime issues, check `app_flutter/rust/Cargo.toml` `[patch.crates-io]` section.
 
-Izin yang diminta saat pertama dijalankan:
+### App crashes on install (versionCode downgrade)
 
-- **Foto & video** (`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`) — untuk memindai galeri.
-- **Notifikasi** (`POST_NOTIFICATIONS`) — untuk progres backup background.
+If installing over a previous Tauri build, the versionCode must be higher. Current versionCode is `1002` (version `0.3.0+1002`).
 
-## 4. Setup pertama di aplikasi
+## Architecture Notes
 
-1. **Kredensial API Telegram** — buat di <https://my.telegram.org/apps> (gratis),
-   tempel API ID + API Hash.
-2. **Login** — pilih nomor telepon (OTP) atau QR code. Jika akun memakai 2FA,
-   masukkan cloud password.
-3. Vault channel privat `TelegramPhotos_Vault` dibuat otomatis.
-4. Buka tab **Galeri** → **Pindai galeri** untuk memuat media perangkat.
-5. Buka tab **Backup** → **Mulai backup sekarang**.
-
-## 5. Build desktop (Windows/macOS/Linux)
-
-```bash
-cd app
-npm run tauri dev      # mode pengembangan dengan hot reload
-npm run tauri build    # bundle desktop
-```
-
-> Fitur MediaStore & WorkManager khusus Android; di desktop gunakan
-> **📁 Tambah folder** di tab Galeri untuk memilih direktori foto.
-
-## 6. Perintah penting lainnya
-
-| Perintah | Fungsi |
-|---|---|
-| `npx tauri android init` | (Re)generate proyek Android di `gen/android` |
-| `cargo test` (di `app/src-tauri`) | Menjalankan unit test backend (crypto, geo, media) |
-| `npx tsc --noEmit` (di `app`) | Typecheck frontend |
-| `cargo check --target aarch64-linux-android` | Validasi compile backend untuk Android |
+- **Core crate** (`core/`) compiles as `rlib` — no FFI, pure Rust.
+- **FRB bridge** (`app_flutter/rust/`) compiles as `cdylib` + `staticlib` — produces `.so` for Android.
+- **Cargokit** handles cross-compilation from Rust to Android ABIs (arm64, armv7, x86_64, x86).
+- **Grammers** requires a tokio runtime for async MTProto operations.

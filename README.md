@@ -1,177 +1,122 @@
 # Telegram Photos
 
-Backup galeri foto & video ke channel privat Telegram — lengkap dengan migrasi
-Google Photos, enkripsi zero-knowledge, dan auto-backup background.
+Back up your photo gallery to a private Telegram channel with zero-knowledge encryption.
 
-Dibangun ulang dari nol berdasarkan `PRD.md` dengan **backend Rust asli**
-(bukan simulasi): MTProto Grammers untuk upload sungguhan, SQLite lokal,
-enkripsi XChaCha20-Poly1305, MediaStore + WorkManager Android native, dan
-importer Google Photos via OAuth2 + Library API.
+Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyzcjy.github.io/flutter_rust_bridge/). Telegram MTProto integration uses [Grammers](https://github.com/Lonami/grammers) — a pure Rust Telegram client library.
 
-| Ringkasan | Nilai |
+| | |
 |---|---|
-| Platform | Android (Tauri 2 + WebView), desktop (Windows/macOS/Linux) |
-| Backend | Rust — Grammers MTProto, rusqlite-style `sqlite`, reqwest |
-| Frontend | React 19 + TypeScript + Vite |
-| Native Android | Kotlin — MediaStore, ContentObserver, WorkManager, notifikasi |
-| Ukuran APK release | ±13 MB (`libtelegram_photos_lib.so` ±10 MB) |
-| Enkripsi | XChaCha20-Poly1305 + Argon2id (opsional, zero-knowledge) |
+| **Platform** | Android (Flutter), desktop (Windows/macOS/Linux) |
+| **UI** | Flutter 3.x + Material 3 |
+| **Core** | Rust — Grammers MTProto, SQLite, XChaCha20-Poly1305 encryption |
+| **Bridge** | flutter_rust_bridge 2.12 (codegen Rust ↔ Dart) |
+| **Android Native** | Kotlin — MediaStore scan, thumbnail generation, MethodChannel |
 
----
+## Features
 
-## Fitur
+### Backup to Telegram
+- Login via **QR code** or **phone number** (OTP + 2FA).
+- Auto-creates a private channel `TelegramPhotos_Vault`.
+- Chunked upload (512 KB) with real-time progress and FLOOD_WAIT handling.
+- Backup state machine: `NOT_BACKED_UP → QUEUED → UPLOADING → BACKED_UP`.
 
-### 1. Backup ke Telegram (nyata, bukan simulasi)
-- Login MTProto resmi: **OTP via SMS/Telegram**, **2FA cloud password**, atau **QR code**.
-- Auto-provisioning **Private Channel** `TelegramPhotos_Vault` (dibuat otomatis saat pertama login).
-- Upload chunked dengan **progress real-time**, dukungan file besar, dan
-  penanganan `FLOOD_WAIT` (jeda otomatis sesuai instruksi Telegram).
-- State machine backup: `NOT_BACKED_UP → QUEUED → UPLOADING → BACKED_UP → CLOUD_ONLY`.
+### Local Gallery (Android MediaStore)
+- Scan `MediaStore.Images` + `MediaStore.Video` via Kotlin MethodChannel.
+- EXIF extraction: date, GPS, camera model, ISO, aperture.
+- SHA-256 hashing per file for deduplication.
+- Thumbnail generation (256 px JPEG) — no full decode (anti-OOM).
 
-### 2. Galeri lokal Android (MediaStore asli)
-- Scan `MediaStore.Images` + `MediaStore.Video` via plugin Kotlin (bukan file picker).
-- `ContentObserver` untuk deteksi media baru secara real-time.
-- Ekstraksi EXIF offline: tanggal, GPS, model kamera, ISO, aperture, focal length.
-- Hash SHA-256 per file untuk deduplikasi & verifikasi integritas.
-- Scan galeri **tanpa decode penuh** (anti-OOM): thumbnail dibuat decoder
-  native Android, dimensi dibaca dari header, EXIF tetap diekstrak.
-- Thumbnail WebP bertingkat + BlurHash untuk alur berbasis path (desktop).
+### Zero-Knowledge Encryption
+- XChaCha20-Poly1305 streaming encryption (4 KB chunks).
+- Key derived from user passphrase via Argon2id (64 MiB memory cost).
+- Passphrase never stored — only salt + KDF parameters in local DB.
 
-### 3. Auto-backup background (WorkManager)
-- Periodic worker 15 menit memanggil mesin backup Rust via JNI (database &
-  sesi Telegram yang sama dengan UI).
-- Constraints: **hanya Wi-Fi**, **hanya saat charging** — diperiksa dari state
-  nyata perangkat.
-- Notifikasi progres selama backup berjalan.
-- Whitelist folder (Kamera/WhatsApp/Instagram/… bisa di-on/off).
+### Backup Progress
+- Per-file progress tracking with retry and cancel.
+- Failed upload queue with error details.
+- WiFi-only and charging-only constraints.
 
-### 4. "Bebaskan Ruang Perangkat" (Free Up Space)
-- Hitung ruang yang bisa dibebaskan dari file yang sudah terverifikasi `BACKED_UP`.
-- Sebelum hapus, **verifikasi SHA-256 ulang** terhadap hash yang tercatat.
-- Thumbnail tetap tersimpan agar galeri tetap bisa dilihat offline.
-
-### 5. Migrasi Google Photos (cloud-to-cloud)
-- OAuth 2.0 (`photoslibrary.readonly`) dengan token refresh otomatis.
-- Discovery: total item, ukuran, daftar album.
-- Import streaming: download dari Google (`baseUrl=d`) → upload ke Telegram,
-  metadata (tanggal asli, GPS, kamera, album) dipertahankan.
-- Dedup berdasarkan hash SHA-256 + Google Media ID.
-- Dialog pasca-import: hapus dari Google (dengan panduan) atau biarkan ganda.
-
-### 6. Keamanan & Vault (zero-knowledge)
-- Enkripsi opsional **XChaCha20-Poly1305** (streaming, 4 KB chunk) dengan kunci
-  turunan **Argon2id** dari passphrase pengguna.
-- Passphrase tidak pernah disimpan; hanya salt + parameter KDF di database.
-- Vault terkunci saat background worker berjalan → item terenkripsi menunggu
-  dibuka oleh pengguna (file tidak pernah terkirim tanpa kunci).
-
-### 7. UI mobile-first
-- Grid timeline 1/3/5/8 kolom, sticky header bulan, fast date scrubber.
-- Multi-select long-press, batch favorite / trash / antre backup.
-- Pencarian non-AI: kota, negara, model kamera, nama file.
-- Sampah dengan retensi 30 hari + purge otomatis.
-- Reverse geocoding offline (≈280 kota dunia, radius 50 km).
-
----
-
-## Struktur Proyek
+## Project Structure
 
 ```
 .
-├── docs/
-│   ├── ARCHITECTURE.md             # Arsitektur teknis detail
-│   ├── PRD_COVERAGE.md             # Pemetaan PRD → implementasi
-│   └── BUILD.md                    # Panduan build & instalasi
-├── app/
-│   ├── src/                        # Frontend React (TypeScript)
-│   │   ├── api.ts                  # Wrapper seluruh command Tauri
-│   │   ├── types.ts                # Tipe data (cermin model Rust)
-│   │   └── components/             # Onboarding, Galeri, Backup, Google, Setelan
-│   └── src-tauri/
-│       ├── src/                    # Backend Rust
-│       │   ├── telegram/           # MTProto: auth, vault channel, upload
-│       │   ├── db.rs               # SQLite (skema PRD §5)
-│       │   ├── crypto.rs           # XChaCha20-Poly1305 + Argon2id
-│       │   ├── media.rs            # EXIF, thumbnail, BlurHash, SHA-256
-│       │   ├── backup.rs           # State machine backup + free up space
-│       │   ├── google.rs           # OAuth2 + importer Google Photos
-│       │   ├── geo.rs              # Reverse geocoding offline
-│       │   ├── android_media.rs    # Jembatan JNI ke plugin Kotlin
-│       │   └── bg_worker.rs        # Export JNI untuk WorkManager
-│       └── gen/android/            # Proyek Android (Kotlin)
-│           └── app/src/main/java/com/telegramphotos/app/
-│               ├── MediaPlugin.kt      # MediaStore, constraints, notifikasi
-│               ├── BackgroundWorker.kt # Worker WorkManager → Rust via JNI
-│               └── BackupScheduler.kt  # Jadwal periodic 15 menit
+├── core/                          # Rust core crate (pure business logic)
+│   ├── src/
+│   │   ├── db.rs                  # SQLite schema, CRUD, migrations
+│   │   ├── models.rs              # Data models (MediaItem, Upload, etc.)
+│   │   ├── media.rs               # EXIF, thumbnail, SHA-256 hashing
+│   │   ├── geo.rs                 # Offline reverse geocoding
+│   │   └── crypto.rs              # XChaCha20-Poly1305 + Argon2id
+│   └── Cargo.toml
+├── app_flutter/                   # Flutter app + FRB bridge
+│   ├── lib/
+│   │   ├── main.dart              # Entry point, auth check, onboarding
+│   │   └── src/
+│   │       ├── screens/           # Photos, Search, Library, Settings, Upload, Onboarding
+│   │       ├── widgets/           # StatusBadge, BackupBanner
+│   │       └── platform/          # MediaScan MethodChannel
+│   ├── rust/                      # FRB bridge crate
+│   │   ├── src/
+│   │   │   ├── api/               # FRB-exposed functions (db, telegram, mirror)
+│   │   │   ├── telegram/          # MTProto auth, upload, vault
+│   │   │   └── backup.rs          # Backup state machine
+│   │   └── Cargo.toml
+│   └── android/                   # Android project (Kotlin)
+│       └── .../MediaPlugin.kt     # MediaStore scan, thumbnails, getAppDataDir
+├── vendor/core2/                  # Vendored core2 stub (yanked on crates.io)
+└── docs/                          # Documentation
+    ├── ARCHITECTURE.md
+    ├── BUILD.md
+    ├── CHANGELOG.md
+    └── PRD_PART2.md
 ```
 
----
+## Quick Start
 
-## Mulai Cepat
-
-Persyaratan: Node.js 20+, Rust (stable), Android SDK + NDK, Java 17+.
+**Prerequisites:** Flutter SDK, Rust (stable), Android SDK + NDK, Java 17+.
 
 ```bash
-# 1. Install dependensi frontend
-cd app
-npm install
+# 1. Install Flutter dependencies
+cd app_flutter
+flutter pub get
 
-# 2. Android: build APK (aarch64; butuh ANDROID_HOME)
-export ANDROID_HOME="$HOME/Android/Sdk"
-npx tauri android build --target aarch64
+# 2. Generate FRB bindings
+flutter_rust_bridge_codegen generate
 
-# APK: app/src-tauri/gen/android/app/build/outputs/apk/universal/release/
-# (signing: lihat docs/BUILD.md)
+# 3. Build debug APK
+flutter build apk --debug
 
-# 3. Desktop: jalankan mode dev
-npm run tauri dev
+# 4. Install on emulator/device
+adb install build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-Detail lengkap (prasyarat, signing keystore, struktur perintah): lihat
-**[docs/BUILD.md](docs/BUILD.md)**.
+See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including release builds, signing, and troubleshooting.
 
-## Referensi riset
+## Tech Stack
 
-- **[docs/PRD_PART2.md](docs/PRD_PART2.md)** — PRD v2: definisi ulang UX ramah
-  pengguna awam (IA 4 tab gaya Google Photos, QR login, progress hub, badge
-  status) dengan meniru pola Telephoto dan mempertahankan keunggulan teknis.
-- **[docs/TELEPHOTO_RE.md](docs/TELEPHOTO_RE.md)** — hasil reverse engineering
-  aplikasi pesaing Telephoto v69 (Flutter + Bot API): arsitektur, model data,
-  pola UI/UX yang layak ditiru, dan kelemahan yang menjadi pembeda kita.
+| Layer | Choice | Why |
+|---|---|---|
+| UI | Flutter 3.x + Material 3 | Cross-platform, hot reload, native performance |
+| Core | Rust (grammers, sqlite, chacha20poly1305) | Safety, performance, MTProto compatibility |
+| Bridge | flutter_rust_bridge 2.12 | Type-safe Rust ↔ Dart codegen |
+| Android | Kotlin MethodChannel | MediaStore access, thumbnail generation |
+| Database | SQLite (bundled via rusqlite) | Compatible with grammers-session, WAL mode |
+| Encryption | XChaCha20-Poly1305 + Argon2id | Streaming encryption, memory-hard KDF |
 
-## Lisensi
+## Documentation
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — System architecture and data flow
+- **[docs/BUILD.md](docs/BUILD.md)** — Build and installation guide
+- **[docs/CHANGELOG.md](docs/CHANGELOG.md)** — Version history
+- **[docs/PRD_PART2.md](docs/PRD_PART2.md)** — Product requirements (UX, features)
+- **[docs/TELEPHOTO_RE.md](docs/TELEPHOTO_RE.md)** — Reverse engineering of competitor app
+
+## Versioning
+
+This project uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH+buildNumber`.
+
+Current version: **0.3.0+1002** (pre-release, MTProto port in progress).
+
+## License
 
 [MIT](LICENSE)
-
----
-
-## Cakupan PRD
-
-Semua modul inti PRD terimplementasi dengan fungsi nyata (bukan mock):
-
-- Import Google Photos (OAuth + API + streaming) — **nyata**
-- Autentikasi & vault Telegram (MTProto) — **nyata**
-- Galeri lokal MediaStore + EXIF — **nyata**
-- Auto-backup background (WorkManager) — **nyata**
-- Free Up Space dengan verifikasi hash — **nyata**
-- Timeline grid + gestur + pencarian — **nyata**
-- Enkripsi zero-knowledge — **nyata**
-
-Catatan jujur tentang keterbatasan (Google Library API tidak punya endpoint
-hapus; iOS belum didukung; database geocode berupa dataset ~280 kota bukan
-GeoNames 15 MB) dijelaskan per-bagian di
-**[docs/PRD_COVERAGE.md](docs/PRD_COVERAGE.md)**.
-
----
-
-## Teknologi
-
-| Lapisan | Pilihan | Alasan |
-|---|---|---|
-| Runtime aplikasi | Tauri 2 | Backend Rust native + WebView; ukuran kecil |
-| Telegram | Grammers (MTProto) | Client Telegram resmi di Rust; sesi SQLite; upload chunked |
-| Database | `sqlite` (bundled) | Satu-satunya yang kompatibel dengan `grammers-session`; PRAGMA WAL |
-| Enkripsi | `chacha20poly1305` + `argon2` | XChaCha20-Poly1305 streaming; Argon2id KDF |
-| Gambar | `image` (WebP) + `exifr`-style `kamadak-exif` | Thumbnail & metadata offline |
-| HTTP | `reqwest` | Google Photos API |
-| Android | Kotlin + WorkManager | MediaStore, ContentObserver, background job, notifikasi |
