@@ -6,7 +6,63 @@
 //! desktop they fall back to directory scanning and "always satisfied"
 //! constraints.
 
+use jni::objects::{GlobalRef, JClass};
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+
+/// Cached JNI handle to the Kotlin `MediaPlugin` class.
+///
+/// `FindClass` called from a thread attached via `AttachCurrentThread` (the
+/// tokio worker threads that commands run on) resolves against the *system*
+/// class loader and cannot see application classes: it throws
+/// `ClassNotFoundException` and, unless cleared, the pending exception kills
+/// the whole process ("FATAL EXCEPTION" / force-close). The class is cached
+/// as a global ref from the main thread — where the app class loader is
+/// active — and reused from every worker thread.
+static MEDIA_PLUGIN_CLASS: OnceLock<Option<GlobalRef>> = OnceLock::new();
+
+/// Called from `MainActivity.onCreate` with `MediaPlugin::class.java`.
+#[no_mangle]
+pub extern "system" fn Java_com_telegramphotos_app_MainActivity_nativeCacheClass(
+    env: jni::JNIEnv,
+    _this: JClass,
+    cls: JClass,
+) {
+    if let Ok(g) = env.new_global_ref(cls) {
+        let _ = MEDIA_PLUGIN_CLASS.set(Some(g));
+    }
+}
+
+/// Returns the cached `MediaPlugin` class (global ref). Falls back to a direct
+/// lookup for environments that already carry the app class loader; on failure
+/// the pending exception is cleared so it cannot crash the process.
+#[cfg(target_os = "android")]
+pub(crate) fn media_plugin_class(
+    env: &mut jni::JNIEnv,
+) -> Result<&'static GlobalRef, String> {
+    if let Some(Some(g)) = MEDIA_PLUGIN_CLASS.get() {
+        return Ok(g);
+    }
+    match env.find_class("com/telegramphotos/app/MediaPlugin") {
+        Ok(c) => match env.new_global_ref(c) {
+            Ok(g) => {
+                let _ = MEDIA_PLUGIN_CLASS.set(Some(g));
+                Ok(MEDIA_PLUGIN_CLASS
+                    .get()
+                    .and_then(|o| o.as_ref())
+                    .expect("just set"))
+            }
+            Err(e) => {
+                let _ = env.exception_clear();
+                Err(format!("Gagal menyimpan referensi MediaPlugin: {e}"))
+            }
+        },
+        Err(e) => {
+            let _ = env.exception_clear();
+            Err(format!("Kelas MediaPlugin tidak tersedia: {e}"))
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,9 +101,7 @@ pub fn constraints_ok(wifi_only: bool, charging_only: bool) -> bool {
     // Ask the Kotlin plugin for real network + charging state. On failure we
     // fail-open so backups are never silently blocked forever.
     with_env(|env| {
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
-            .map_err(|e| e.to_string())?;
+        let class = media_plugin_class(env)?;
         let result = env
             .call_static_method(
                 class,
@@ -78,9 +132,7 @@ pub fn scan_gallery(_folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, Stri
 #[cfg(target_os = "android")]
 pub fn scan_gallery(folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, String> {
     with_env(|env| {
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
-            .map_err(|e| e.to_string())?;
+        let class = media_plugin_class(env)?;
         let arg = env
             .new_string(folder.unwrap_or(""))
             .map_err(|e| e.to_string())?;
@@ -105,9 +157,7 @@ pub fn scan_gallery(folder: Option<&str>) -> Result<Vec<NativeMediaEntry>, Strin
 #[cfg(target_os = "android")]
 pub fn materialize_media(uri: &str, dest_dir: &str, file_name: &str) -> Result<String, String> {
     with_env(|env| {
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
-            .map_err(|e| e.to_string())?;
+        let class = media_plugin_class(env)?;
         let uri_s = env.new_string(uri).map_err(|e| e.to_string())?;
         let dir_s = env.new_string(dest_dir).map_err(|e| e.to_string())?;
         let name_s = env.new_string(file_name).map_err(|e| e.to_string())?;
@@ -145,9 +195,7 @@ pub fn materialize_media(_uri: &str, _dest_dir: &str, _file_name: &str) -> Resul
 #[cfg(target_os = "android")]
 pub fn register_content_observer() -> Result<(), String> {
     with_env(|env| {
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
-            .map_err(|e| e.to_string())?;
+        let class = media_plugin_class(env)?;
         let arg = env.new_string("").map_err(|e| e.to_string())?;
         env.call_static_method(
             class,
@@ -180,5 +228,11 @@ fn with_env<T>(
     let mut env = vm
         .attach_current_thread()
         .map_err(|e| format!("JNI attach gagal: {e}"))?;
-    f(&mut env)
+    let result = f(&mut env);
+    // Never leave a pending Java exception on the thread: if it is not
+    // cleared, the JVM aborts the process with FATAL EXCEPTION.
+    if result.is_err() {
+        let _ = env.exception_clear();
+    }
+    result
 }

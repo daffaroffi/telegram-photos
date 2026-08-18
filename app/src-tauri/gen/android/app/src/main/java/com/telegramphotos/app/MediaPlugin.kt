@@ -89,13 +89,22 @@ object MediaPlugin {
                     add(MediaStore.MediaColumns.IS_FAVORITE)
                 }
             }.toTypedArray()
-            val selection = if (folder.isNotBlank()) {
-                "${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} = ?"
-            } else null
-            val selectionArgs = if (folder.isNotBlank()) arrayOf(folder) else null
+            // Filter: folder (opsional) + skip files that are still being
+            // written (is_pending=1 — invisible to apps and half-written).
+            val selectionParts = mutableListOf<String>()
+            val selectionArgs = mutableListOf<String>()
+            if (folder.isNotBlank()) {
+                selectionParts.add("${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} = ?")
+                selectionArgs.add(folder)
+            }
+            if (Build.VERSION.SDK_INT >= 29) {
+                selectionParts.add("${MediaStore.MediaColumns.IS_PENDING} = 0")
+            }
+            val selection = if (selectionParts.isNotEmpty()) selectionParts.joinToString(" AND ") else null
+            val selectionArgsArr = if (selectionArgs.isNotEmpty()) selectionArgs.toTypedArray() else null
 
             try {
-                resolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+                resolver.query(uri, projection, selection, selectionArgsArr, null)?.use { cursor ->
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                     val nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                     val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)

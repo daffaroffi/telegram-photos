@@ -157,8 +157,7 @@ fn notify_progress(event: &BackupProgressEvent) {
         let mut env = vm
             .attach_current_thread()
             .map_err(|e| e.to_string())?;
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
+        let class = crate::android_media::media_plugin_class(&mut env)
             .map_err(|e| e.to_string())?;
         let file = env
             .new_string(&event.file_name)
@@ -189,8 +188,7 @@ fn notify_done(count: i64) {
         let mut env = vm
             .attach_current_thread()
             .map_err(|e| e.to_string())?;
-        let class = env
-            .find_class("com/telegramphotos/app/MediaPlugin")
+        let class = crate::android_media::media_plugin_class(&mut env)
             .map_err(|e| e.to_string())?;
         env.call_static_method(
             class,

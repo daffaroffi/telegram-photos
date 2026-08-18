@@ -13,6 +13,10 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
+    // Hand the MediaPlugin class to Rust as a global ref: FindClass from
+    // background threads can't see app classes (ClassNotFoundException crash).
+    nativeCacheClass(MediaPlugin::class.java)
+
     // Give the JNI bridge a Context and create the notification channel.
     MediaPlugin.initialize(this)
 
@@ -22,6 +26,8 @@ class MainActivity : TauriActivity() {
 
     requestNeededPermissions()
   }
+
+  private external fun nativeCacheClass(cls: Class<*>)
 
   private fun requestNeededPermissions() {
     val needed = mutableListOf<String>()
