@@ -1129,6 +1129,22 @@ mod tests {
         // thumb_status column exists (G1) and is writable.
         db.set_thumb_status("m1", "CACHED").unwrap();
     }
+
+    /// The JSON emitted by the native MediaStore scanner (MethodChannel) must
+    /// deserialize into MediaItem. The struct uses `rename_all = "camelCase"`
+    /// (the same contract as the old Tauri frontend), so the scanner emits
+    /// camelCase keys with scan-time defaults for required fields.
+    #[test]
+    fn scan_json_parses_into_media_items() {
+        let json = r#"[{"id":"content://media/external/images/media_1","localIdentifier":"1","fileName":"IMG_1.jpg","mimeType":"image/jpeg","mediaType":"image","fileSizeBytes":1024,"dateTaken":1700000000000,"dateAdded":1700000000000,"width":800,"height":600,"durationMs":null,"deviceFolder":"DCIM","latitude":null,"longitude":null,"filePath":null,"sha256Hash":"","syncStatus":"NOT_BACKED_UP","importedFromGooglePhotos":false,"isFavorite":false,"isArchived":false,"isTrashed":false,"isEncrypted":false,"albumIds":[]}]"#;
+        let items: Vec<MediaItem> = serde_json::from_str(json)
+            .map_err(|e| panic!("scan JSON failed to parse: {e}"))
+            .unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].file_name, "IMG_1.jpg");
+        assert_eq!(items[0].sync_status, "NOT_BACKED_UP");
+        assert_eq!(items[0].album_ids.len(), 0);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -36,6 +36,29 @@ pub fn count_media() -> Result<i64, String> {
     db()?.count_media()
 }
 
+/// Ingests the JSON array produced by the native MediaStore scanner
+/// (MethodChannel `scanMediaStore`) and upserts every entry.
+/// Returns the number of items written.
+#[frb(sync)]
+pub fn import_scan_results(json: String) -> Result<i64, String> {
+    let trimmed = json.trim();
+    if trimmed.is_empty() || trimmed == "[]" {
+        return Ok(0);
+    }
+    let items: Vec<telegram_photos_core::models::MediaItem> = serde_json::from_str(trimmed)
+        .map_err(|e| {
+            let sample: String = trimmed.chars().take(300).collect();
+            format!("invalid scan JSON: {e} — sample: {sample}")
+        })?;
+    let db = db()?;
+    let mut count = 0i64;
+    for item in items {
+        db.upsert_media(&item)?;
+        count += 1;
+    }
+    Ok(count)
+}
+
 /// Keyset-paginated timeline (PRD Part 1 §11.3): pass `before_timestamp` from
 /// the last item of the previous page to page forward without OFFSET.
 #[frb(sync)]

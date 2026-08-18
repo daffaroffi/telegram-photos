@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../src/platform/media_scan.dart';
 import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
 import '../widgets/backup_banner.dart';
@@ -28,6 +29,11 @@ class _PhotosScreenState extends State<PhotosScreen> {
   void initState() {
     super.initState();
     _loadPage();
+    // PRD Part 2 §4.1: after granting photo access, auto-scan on first run
+    // so the grid fills without the user hunting for a button.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (core.countMedia() == 0) _scanGallery();
+    });
   }
 
   Future<void> _loadPage({bool refresh = false}) async {
@@ -83,6 +89,13 @@ class _PhotosScreenState extends State<PhotosScreen> {
           Expanded(child: _buildBody(settings)),
         ],
       ),
+      floatingActionButton: _items.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _scanGallery,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Scan gallery'),
+            ),
     );
   }
 
@@ -91,9 +104,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_items.isEmpty) {
-      return _EmptyState(
-        onRescan: () => _loadPage(refresh: true),
-      );
+      return _EmptyState(onRescan: _scanGallery);
     }
 
     return RefreshIndicator(
@@ -146,6 +157,30 @@ class _PhotosScreenState extends State<PhotosScreen> {
       showDragHandle: true,
       builder: (_) => _ProgressHubSheet(summary: summary),
     );
+  }
+
+  /// Scans the device gallery through the native MediaStore channel, imports
+  /// the results into the Rust core, then refreshes the timeline.
+  Future<void> _scanGallery() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
+    try {
+      final json = await MediaScan.scanGalleryJson();
+      final added = core.importScanResults(json: json);
+      if (!mounted) return;
+      setState(() => _items.clear());
+      await _loadPage(refresh: true);
+      messenger.showSnackBar(
+        SnackBar(content: Text('$added photos & videos found')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Scan failed: $e — check photo permission'),
+          backgroundColor: errorColor,
+        ),
+      );
+    }
   }
 }
 

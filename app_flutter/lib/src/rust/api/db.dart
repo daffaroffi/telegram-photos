@@ -17,6 +17,12 @@ void initCore({required String dbPath}) =>
 /// Total non-trashed items (grid badge & boot summary).
 PlatformInt64 countMedia() => RustLib.instance.api.crateApiDbCountMedia();
 
+/// Ingests the JSON array produced by the native MediaStore scanner
+/// (MethodChannel `scanMediaStore`) and upserts every entry.
+/// Returns the number of items written.
+PlatformInt64 importScanResults({required String json}) =>
+    RustLib.instance.api.crateApiDbImportScanResults(json: json);
+
 /// Keyset-paginated timeline (PRD Part 1 §11.3): pass `before_timestamp` from
 /// the last item of the previous page to page forward without OFFSET.
 List<MediaItem> listTimeline({
