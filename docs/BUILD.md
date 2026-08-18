@@ -76,7 +76,7 @@ keytool -genkeypair -v \
   -keystore ~/telegramphotos.keystore \
   -alias telegramphotos \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -storepass rahasia123 -keypass rahasia123 \
+  -storepass GANTI_DENGAN_PASSWORD_ANDAMU -keypass GANTI_DENGAN_PASSWORD_ANDAMU \
   -dname "CN=TelegramPhotos, O=TelegramPhotos, C=ID"
 ```
 
@@ -87,15 +87,16 @@ BT="$ANDROID_HOME/build-tools/37.0.0"
 "$BT/apksigner" sign \
   --ks ~/telegramphotos.keystore \
   --ks-key-alias telegramphotos \
-  --ks-pass pass:rahasia123 --key-pass pass:rahasia123 \
+  --ks-pass pass:GANTI_DENGAN_PASSWORD_ANDAMU --key-pass pass:GANTI_DENGAN_PASSWORD_ANDAMU \
   --out TelegramPhotos-release.apk \
   app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 
 "$BT/apksigner" verify TelegramPhotos-release.apk
 ```
 
-> Simpan keystore & password di tempat aman. Keystore yang sama harus dipakai
-> untuk semua update agar aplikasi bisa di-update di perangkat.
+> Simpan keystore & password di tempat aman (jangan commit password ke repo
+> publik). Keystore yang sama harus dipakai untuk semua update agar aplikasi
+> bisa di-update di perangkat.
 
 ### APK debug (tanpa signing manual)
 
