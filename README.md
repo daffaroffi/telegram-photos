@@ -6,35 +6,55 @@ Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyz
 
 | | |
 |---|---|
-| **Platform** | Android (Flutter), desktop (Windows/macOS/Linux) |
+| **Platform** | Android (primary), desktop (planned) |
 | **UI** | Flutter 3.x + Material 3 |
-| **Core** | Rust — Grammers MTProto, SQLite, XChaCha20-Poly1305 encryption |
+| **Core** | Rust — Grammers MTProto, SQLite, XChaCha20-Poly1305 |
 | **Bridge** | flutter_rust_bridge 2.12 (codegen Rust ↔ Dart) |
-| **Android Native** | Kotlin — MediaStore scan, thumbnail generation, MethodChannel |
+| **Android Native** | Kotlin — MediaStore scan, thumbnail generation |
 
 ## Features
 
-### Backup to Telegram
-- Login via **QR code** or **phone number** (OTP + 2FA).
-- Auto-creates a private channel `TelegramPhotos_Vault`.
-- Chunked upload (512 KB) with real-time progress and FLOOD_WAIT handling.
-- Backup state machine: `NOT_BACKED_UP → QUEUED → UPLOADING → BACKED_UP`.
+### ✅ Implemented
 
-### Local Gallery (Android MediaStore)
+**Telegram Login**
+- QR code login (scan with Telegram on another device).
+- Phone number login (OTP + 2FA password).
+- Session persistence — no re-login after app restart.
+
+**Local Gallery (Android MediaStore)**
 - Scan `MediaStore.Images` + `MediaStore.Video` via Kotlin MethodChannel.
+- Auto-scan on first launch when database is empty.
 - EXIF extraction: date, GPS, camera model, ISO, aperture.
 - SHA-256 hashing per file for deduplication.
 - Thumbnail generation (256 px JPEG) — no full decode (anti-OOM).
 
-### Zero-Knowledge Encryption
+**Backup to Telegram**
+- Auto-creates private channel `TelegramPhotos_Vault`.
+- Chunked upload (512 KB) with real-time progress.
+- FLOOD_WAIT handling — auto-retry with X+2s delay.
+- Backup state machine: `NOT_BACKED_UP → QUEUED → UPLOADING → BACKED_UP`.
+- Per-file progress tracking with retry and cancel.
+
+**Zero-Knowledge Encryption**
 - XChaCha20-Poly1305 streaming encryption (4 KB chunks).
 - Key derived from user passphrase via Argon2id (64 MiB memory cost).
 - Passphrase never stored — only salt + KDF parameters in local DB.
 
-### Backup Progress
-- Per-file progress tracking with retry and cancel.
-- Failed upload queue with error details.
+**Settings**
+- Auto-backup toggle.
 - WiFi-only and charging-only constraints.
+- Grid column count (3/4/5/6).
+- Encryption setup with passphrase.
+
+### 🔜 Planned
+
+- Background backup via WorkManager.
+- Push notifications for backup progress.
+- Free Up Space (delete local copies of backed-up photos).
+- Full-text search (FTS5).
+- Google Photos import (OAuth + Library API).
+- Home screen widget.
+- Desktop support (Windows/macOS/Linux).
 
 ## Project Structure
 
@@ -62,13 +82,12 @@ Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyz
 │   │   │   └── backup.rs          # Backup state machine
 │   │   └── Cargo.toml
 │   └── android/                   # Android project (Kotlin)
-│       └── .../MediaPlugin.kt     # MediaStore scan, thumbnails, getAppDataDir
+│       └── .../MediaPlugin.kt     # MediaStore scan, thumbnails
 ├── vendor/core2/                  # Vendored core2 stub (yanked on crates.io)
-└── docs/                          # Documentation
-    ├── ARCHITECTURE.md
-    ├── BUILD.md
-    ├── CHANGELOG.md
-    └── PRD_PART2.md
+└── docs/                          # Public documentation
+    ├── ARCHITECTURE.md            # System architecture
+    ├── BUILD.md                   # Build instructions
+    └── CHANGELOG.md               # Version history
 ```
 
 ## Quick Start
@@ -90,7 +109,7 @@ flutter build apk --debug
 adb install build/app/outputs/flutter-apk/app-debug.apk
 ```
 
-See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including release builds, signing, and troubleshooting.
+See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including release builds and signing.
 
 ## Tech Stack
 
@@ -100,7 +119,7 @@ See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including relea
 | Core | Rust (grammers, sqlite, chacha20poly1305) | Safety, performance, MTProto compatibility |
 | Bridge | flutter_rust_bridge 2.12 | Type-safe Rust ↔ Dart codegen |
 | Android | Kotlin MethodChannel | MediaStore access, thumbnail generation |
-| Database | SQLite (bundled via rusqlite) | Compatible with grammers-session, WAL mode |
+| Database | SQLite (bundled) | Compatible with grammers-session, WAL mode |
 | Encryption | XChaCha20-Poly1305 + Argon2id | Streaming encryption, memory-hard KDF |
 
 ## Documentation
@@ -108,14 +127,12 @@ See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including relea
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — System architecture and data flow
 - **[docs/BUILD.md](docs/BUILD.md)** — Build and installation guide
 - **[docs/CHANGELOG.md](docs/CHANGELOG.md)** — Version history
-- **[docs/PRD_PART2.md](docs/PRD_PART2.md)** — Product requirements (UX, features)
-- **[docs/TELEPHOTO_RE.md](docs/TELEPHOTO_RE.md)** — Reverse engineering of competitor app
 
 ## Versioning
 
 This project uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH+buildNumber`.
 
-Current version: **0.3.0+1002** (pre-release, MTProto port in progress).
+Current version: **0.3.0+1002**
 
 ## License
 
