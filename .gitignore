@@ -2,7 +2,7 @@
 /snipoff/
 
 # Built artifacts
-TelegramPhotos-*.apk
+release/
 *.apk
 *.aab
 
@@ -28,7 +28,6 @@ app/src-tauri/gen/android/tauri.settings.gradle
 app/src-tauri/gen/android/app/tauri.build.gradle.kts
 app/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar
 *.keystore
-!app/src-tauri/gen/android/keystore/
 
 # OS / Editor
 .DS_Store
