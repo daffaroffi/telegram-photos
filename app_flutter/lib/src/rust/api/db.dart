@@ -40,6 +40,10 @@ VaultInfo getVaultInfo() => RustLib.instance.api.crateApiDbGetVaultInfo();
 List<Upload> listUploadsByStatus({required String status}) =>
     RustLib.instance.api.crateApiDbListUploadsByStatus(status: status);
 
+/// Retry a failed/paused upload (PRD Part 2 §6.2: resets state machine).
+void retryUpload({required String uploadId}) =>
+    RustLib.instance.api.crateApiDbRetryUpload(uploadId: uploadId);
+
 /// Backup banner aggregate (G4): one indexed GROUP BY.
 UploadsSummary uploadsSummary() =>
     RustLib.instance.api.crateApiDbUploadsSummary();

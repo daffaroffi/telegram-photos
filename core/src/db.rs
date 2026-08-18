@@ -756,6 +756,20 @@ impl Db {
         .map(|_| ())
     }
 
+    /// Mark a failed/paused upload back to PENDING so the upload manager picks
+    /// it up again (PRD Part 2 §6.2: retry = reset state machine).
+    pub fn retry_upload(&self, upload_id: &str) -> Result<(), String> {
+        self.exec(
+            "UPDATE uploads SET status='PENDING', retry_count=retry_count+1,
+                last_error=NULL, uploaded_bytes=0, updated_at=? WHERE id=?",
+            &[
+                (1usize, Value::Integer(chrono::Utc::now().timestamp_millis())),
+                (2usize, Value::String(upload_id.to_string())),
+            ],
+        )
+        .map(|_| ())
+    }
+
     pub fn get_upload(&self, media_id: &str) -> Result<Option<Upload>, String> {
         let mut stmt = self
             .conn

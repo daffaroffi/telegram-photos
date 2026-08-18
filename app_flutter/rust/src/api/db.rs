@@ -73,6 +73,12 @@ pub fn list_uploads_by_status(status: String) -> Result<Vec<Upload>, String> {
     db()?.list_uploads_by_status(&status)
 }
 
+/// Retry a failed/paused upload (PRD Part 2 §6.2: resets state machine).
+#[frb(sync)]
+pub fn retry_upload(upload_id: String) -> Result<(), String> {
+    db()?.retry_upload(&upload_id)
+}
+
 /// Backup banner aggregate (G4): one indexed GROUP BY.
 #[frb(sync)]
 pub fn uploads_summary() -> Result<UploadsSummary, String> {
