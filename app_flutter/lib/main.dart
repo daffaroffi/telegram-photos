@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:telegram_photos/src/rust/api/db.dart' as core;
-import 'package:telegram_photos/src/rust/frb_generated.dart';
+
+import 'src/screens/app_shell.dart';
+import 'src/rust/api/db.dart' as core;
+import 'src/rust/frb_generated.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +28,7 @@ class TelegramPhotosApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2AABEE)),
         useMaterial3: true,
       ),
-      home: const CoreProbeScreen(),
+      home: const AppShell(),
     );
   }
 }
