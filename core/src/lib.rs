@@ -8,6 +8,7 @@
 //! Telegram MTProto, crypto, Google import and the backup engine will move
 //! here progressively as they are decoupled from Tauri state.
 
+pub mod crypto;
 pub mod db;
 pub mod geo;
 pub mod media;

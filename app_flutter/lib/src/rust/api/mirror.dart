@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `TelegramUser`, `UploadError`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `UploadError`
 
 class Album {
   final String id;
@@ -116,6 +116,37 @@ class AppSettings {
           telegramApiHash == other.telegramApiHash &&
           googleClientId == other.googleClientId &&
           googleClientSecret == other.googleClientSecret;
+}
+
+class AuthCodeResult {
+  final String status;
+  final int? codeLength;
+  final int? resendAfterSeconds;
+  final String? delivery;
+
+  const AuthCodeResult({
+    required this.status,
+    this.codeLength,
+    this.resendAfterSeconds,
+    this.delivery,
+  });
+
+  @override
+  int get hashCode =>
+      status.hashCode ^
+      codeLength.hashCode ^
+      resendAfterSeconds.hashCode ^
+      delivery.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AuthCodeResult &&
+          runtimeType == other.runtimeType &&
+          status == other.status &&
+          codeLength == other.codeLength &&
+          resendAfterSeconds == other.resendAfterSeconds &&
+          delivery == other.delivery;
 }
 
 class Collection {
@@ -350,6 +381,45 @@ class MediaItem {
           isEncrypted == other.isEncrypted &&
           albumIds == other.albumIds &&
           deviceFolder == other.deviceFolder;
+}
+
+class TelegramUser {
+  final PlatformInt64 id;
+  final String firstName;
+  final String? lastName;
+  final String? username;
+  final String phone;
+  final bool isPremium;
+
+  const TelegramUser({
+    required this.id,
+    required this.firstName,
+    this.lastName,
+    this.username,
+    required this.phone,
+    required this.isPremium,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      firstName.hashCode ^
+      lastName.hashCode ^
+      username.hashCode ^
+      phone.hashCode ^
+      isPremium.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TelegramUser &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          firstName == other.firstName &&
+          lastName == other.lastName &&
+          username == other.username &&
+          phone == other.phone &&
+          isPremium == other.isPremium;
 }
 
 class Upload {

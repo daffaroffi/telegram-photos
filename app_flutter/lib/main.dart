@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'src/screens/app_shell.dart';
+import 'src/screens/onboarding_screen.dart';
 import 'src/rust/api/db.dart' as core;
+import 'src/rust/api/telegram.dart' as tg;
 import 'src/rust/frb_generated.dart';
+
+/// Global Telegram handle — created once at startup, shared across screens.
+late final tg.TelegramHandle telegramHandle;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,11 +18,41 @@ Future<void> main() async {
   final dir = await getApplicationSupportDirectory();
   core.initCore(dbPath: '${dir.path}/telegram_photos.db');
 
+  // Create the Telegram state handle (lives for the app lifetime).
+  telegramHandle = await tg.TelegramHandle.newInstance();
+
   runApp(const TelegramPhotosApp());
 }
 
-class TelegramPhotosApp extends StatelessWidget {
+class TelegramPhotosApp extends StatefulWidget {
   const TelegramPhotosApp({super.key});
+
+  @override
+  State<TelegramPhotosApp> createState() => _TelegramPhotosAppState();
+}
+
+class _TelegramPhotosAppState extends State<TelegramPhotosApp> {
+  bool _authorized = false;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final connected = await tg.checkConnection(
+      handle: telegramHandle,
+      appDataDir: '',
+    );
+    if (mounted) {
+      setState(() {
+        _authorized = connected;
+        _checking = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,42 +63,13 @@ class TelegramPhotosApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2AABEE)),
         useMaterial3: true,
       ),
-      home: const AppShell(),
+      home: _checking
+          ? const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            )
+          : _authorized
+              ? const AppShell()
+              : const OnboardingScreen(),
     );
   }
-}
-
-/// Boot probe: proves the Rust core answers real DB queries through FRB.
-/// Replaced by the 4-tab Photos/Search/Library/Settings shell (PRD Part 2 §3).
-class CoreProbeScreen extends StatelessWidget {
-  const CoreProbeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final count = core.countMedia();
-    final summary = core.uploadsSummary();
-    final collections = core.listCollections();
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Telegram Photos — core probe')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('Media items: $count', style: _style(context)),
-          Text(
-            'Uploads — queued: ${summary.queuedCount} · uploading: '
-            '${summary.uploadingCount} · failed: ${summary.failedCount} · '
-            'backed up: ${summary.backedUpCount}',
-            style: _style(context),
-          ),
-          Text('Collections: ${collections.length}', style: _style(context)),
-          const SizedBox(height: 16),
-          const Text('Rust core (SQLite) is answering through flutter_rust_bridge.'),
-        ],
-      ),
-    );
-  }
-
-  TextStyle _style(BuildContext context) =>
-      Theme.of(context).textTheme.bodyLarge!;
 }

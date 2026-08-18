@@ -1,0 +1,6 @@
+[package]
+name = "core2"
+version = "0.4.0"
+edition = "2021"
+description = "Yanked core2 v0.4.0 vendored locally as stub"
+license = "Apache-2.0 OR MIT"
