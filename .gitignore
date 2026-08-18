@@ -5,18 +5,19 @@
 release/
 *.apk
 *.aab
+*.idsig
 
-# Node
+# Node (old Tauri frontend)
 node_modules/
 dist/
 dist-ssr/
 *.local
 
-# Rust / Tauri
+# Rust / Tauri (old)
 app/src-tauri/target/
 app/src-tauri/gen/schemas/
 
-# Android / Gradle — keep the custom Kotlin plugin & manifests, ignore build output
+# Android / Gradle (old Tauri)
 app/src-tauri/gen/android/.gradle/
 app/src-tauri/gen/android/build/
 app/src-tauri/gen/android/app/build/
@@ -27,7 +28,25 @@ app/src-tauri/gen/android/app/src/main/java/com/telegramphotos/app/generated/
 app/src-tauri/gen/android/tauri.settings.gradle
 app/src-tauri/gen/android/app/tauri.build.gradle.kts
 app/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar
-*.keystore
+
+# Flutter build artifacts
+app_flutter/build/
+app_flutter/.flutter-plugins
+app_flutter/.flutter-plugins-dependencies
+app_flutter/.metadata
+app_flutter/android/.gradle/
+app_flutter/android/app/build/
+app_flutter/android/build/
+app_flutter/android/local.properties
+app_flutter/android/gradlew
+app_flutter/android/gradlew.bat
+app_flutter/android/captures/
+
+# Rust build artifacts (core + FRB bridge)
+core/target/
+app_flutter/rust/target/
+app_flutter/rust_builder/build_tool/target/
+vendor/core2/target/
 
 # OS / Editor
 .DS_Store
@@ -35,14 +54,22 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+*.swp
+*.swo
 
 # Env / secrets (API credentials must never be committed)
 .env
 .env.*
 *.session
+*.keystore
+*.jks
 
-# Dokumen produk internal (tidak untuk repo publik)
+# Internal documents — not for public repo
 PRD.md
+**/PRD*.md
+docs/TELEPHOTO_RE.md
 
-# APK signature sidecar
-*.idsig
+# Generated FRB bindings (regenerated via flutter_rust_bridge_codegen)
+# Uncomment if you prefer not to track these:
+# app_flutter/lib/src/rust/frb_generated*.dart
+# app_flutter/rust/src/frb_generated.rs
