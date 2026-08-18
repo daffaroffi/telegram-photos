@@ -2,32 +2,15 @@
 /snipoff/
 
 # Built artifacts
-release/
 *.apk
 *.aab
 *.idsig
 
-# Node (old Tauri frontend)
-node_modules/
-dist/
-dist-ssr/
-*.local
-
-# Rust / Tauri (old)
-app/src-tauri/target/
-app/src-tauri/gen/schemas/
-
-# Android / Gradle (old Tauri)
-app/src-tauri/gen/android/.gradle/
-app/src-tauri/gen/android/build/
-app/src-tauri/gen/android/app/build/
-app/src-tauri/gen/android/local.properties
-app/src-tauri/gen/android/app/src/main/assets/
-app/src-tauri/gen/android/app/src/main/jniLibs/
-app/src-tauri/gen/android/app/src/main/java/com/telegramphotos/app/generated/
-app/src-tauri/gen/android/tauri.settings.gradle
-app/src-tauri/gen/android/app/tauri.build.gradle.kts
-app/src-tauri/gen/android/gradle/wrapper/gradle-wrapper.jar
+# Rust build artifacts
+core/target/
+app_flutter/rust/target/
+app_flutter/rust_builder/build_tool/target/
+vendor/core2/target/
 
 # Flutter build artifacts
 app_flutter/build/
@@ -42,11 +25,10 @@ app_flutter/android/gradlew
 app_flutter/android/gradlew.bat
 app_flutter/android/captures/
 
-# Rust build artifacts (core + FRB bridge)
-core/target/
-app_flutter/rust/target/
-app_flutter/rust_builder/build_tool/target/
-vendor/core2/target/
+# Node (if any future web tooling)
+node_modules/
+dist/
+*.local
 
 # OS / Editor
 .DS_Store
@@ -68,8 +50,3 @@ Thumbs.db
 PRD.md
 **/PRD*.md
 docs/TELEPHOTO_RE.md
-
-# Generated FRB bindings (regenerated via flutter_rust_bridge_codegen)
-# Uncomment if you prefer not to track these:
-# app_flutter/lib/src/rust/frb_generated*.dart
-# app_flutter/rust/src/frb_generated.rs
