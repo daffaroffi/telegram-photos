@@ -41,5 +41,8 @@ Thumbs.db
 .env.*
 *.session
 
+# Dokumen produk internal (tidak untuk repo publik)
+PRD.md
+
 # APK signature sidecar
 *.idsig

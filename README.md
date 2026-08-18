@@ -78,7 +78,6 @@ importer Google Photos via OAuth2 + Library API.
 
 ```
 .
-├── PRD.md                          # Dokumen produk (spesifikasi)
 ├── docs/
 │   ├── ARCHITECTURE.md             # Arsitektur teknis detail
 │   ├── PRD_COVERAGE.md             # Pemetaan PRD → implementasi
@@ -130,6 +129,10 @@ npm run tauri dev
 
 Detail lengkap (prasyarat, signing keystore, struktur perintah): lihat
 **[docs/BUILD.md](docs/BUILD.md)**.
+
+## Lisensi
+
+[MIT](LICENSE)
 
 ---
 
