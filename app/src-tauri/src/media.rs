@@ -141,6 +141,18 @@ fn parse_gps(s: &str) -> Option<f64> {
     Some(deg + min / 60.0 + sec / 3600.0)
 }
 
+/// Reads image dimensions from the file header without decoding the full
+/// image (a full decode of a 48MP photo can exceed Android's heap and crash
+/// the app when scanning large galleries).
+pub fn image_dimensions(path: &Path) -> Result<(u32, u32), String> {
+    let reader = image::ImageReader::open(path)
+        .map_err(|e| format!("Tidak dapat membuka gambar: {}", e))?
+        .with_guessed_format()
+        .map_err(|e| e.to_string())?;
+    let dims = reader.into_dimensions().map_err(|e| e.to_string())?;
+    Ok((dims.0, dims.1))
+}
+
 /// Generates a multi-tier thumbnail set. Returns `(micro_path, medium_path)`.
 /// Both are WebP (PRD 11.1: micro ~120 px, medium ~600 px).
 pub fn generate_thumbnails(

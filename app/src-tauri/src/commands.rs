@@ -185,7 +185,6 @@ pub async fn cmd_scan_gallery_android(
 ) -> Result<i64, String> {
     let entries: Vec<NativeMediaEntry> = scan_gallery(folder.as_deref())?;
     let cache_dir = app.path().app_cache_dir().map_err(|e| e.to_string())?;
-    let thumb_dir = cache_dir.join("thumbnails");
     let mut added: i64 = 0;
 
     let existing_ids: std::collections::HashSet<String> = db
@@ -277,19 +276,13 @@ pub async fn cmd_scan_gallery_android(
                 item.sha256_hash = hash;
             }
             if item.media_type == "image" {
-                if let Ok((micro, medium)) =
-                    media::generate_thumbnails(path, &thumb_dir, &item.id)
-                {
-                    item.thumbnail_path = Some(micro);
-                    item.preview_path = Some(medium);
-                }
-                if let Ok(img) = image::open(path) {
-                    item.width = Some(img.width() as i64);
-                    item.height = Some(img.height() as i64);
-                    let bh = media::encode_blurhash(&img.to_rgb8(), 4, 3);
-                    if !bh.is_empty() {
-                        item.blur_hash = Some(bh);
-                    }
+                // Header-only metadata. Full-image decoding here caused OOM
+                // force-closes when scanning large galleries (one 48MP decode
+                // can exceed the whole app heap), so we never decode at scan
+                // time — thumbnails come from Android's native decoder.
+                if let Ok((w, h)) = media::image_dimensions(path) {
+                    item.width = Some(w as i64);
+                    item.height = Some(h as i64);
                 }
                 if let Ok(Some(exif)) = media::extract_exif(path) {
                     item.camera_make = exif.camera_make;
@@ -311,6 +304,13 @@ pub async fn cmd_scan_gallery_android(
             }
         }
 
+        // Native thumbnail (small JPEG produced by Android's decoder).
+        if let Some(tp) = &entry.thumbnail_path {
+            if std::path::Path::new(tp).is_file() {
+                item.thumbnail_path = Some(tp.clone());
+            }
+        }
+
         // Free the materialized copy; the item stays ingestable via its URI.
         if let Some(path) = &effective_path {
             if entry.id.starts_with("content://") {
@@ -320,6 +320,10 @@ pub async fn cmd_scan_gallery_android(
 
         db.upsert_media(&item)?;
         added += 1;
+
+        // Let the runtime breathe between heavy items so GC / UI stay alive
+        // when scanning very large galleries.
+        tokio::task::yield_now().await;
     }
     Ok(added)
 }

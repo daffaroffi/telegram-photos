@@ -22,6 +22,7 @@ app/src-tauri/gen/android/build/
 app/src-tauri/gen/android/app/build/
 app/src-tauri/gen/android/local.properties
 app/src-tauri/gen/android/app/src/main/assets/
+app/src-tauri/gen/android/app/src/main/jniLibs/
 app/src-tauri/gen/android/app/src/main/java/com/telegramphotos/app/generated/
 app/src-tauri/gen/android/tauri.settings.gradle
 app/src-tauri/gen/android/app/tauri.build.gradle.kts
