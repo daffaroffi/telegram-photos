@@ -54,6 +54,14 @@ void retryUpload({required String uploadId}) =>
 UploadsSummary uploadsSummary() =>
     RustLib.instance.api.crateApiDbUploadsSummary();
 
+/// Media ids that still need a thumbnail (thumb_status != CACHED).
+List<String> listMediaWithoutThumb({required PlatformInt64 limit}) =>
+    RustLib.instance.api.crateApiDbListMediaWithoutThumb(limit: limit);
+
+/// Records a generated thumbnail path (JSON map mediaId -> absolute path).
+PlatformInt64 saveThumbnailPaths({required String json}) =>
+    RustLib.instance.api.crateApiDbSaveThumbnailPaths(json: json);
+
 String? getCaption({required String mediaId}) =>
     RustLib.instance.api.crateApiDbGetCaption(mediaId: mediaId);
 

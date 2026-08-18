@@ -108,6 +108,28 @@ pub fn uploads_summary() -> Result<UploadsSummary, String> {
     db()?.uploads_summary()
 }
 
+// ── Thumbnails (G1) ────────────────────────────────────────────────────────
+
+/// Media ids that still need a thumbnail (thumb_status != CACHED).
+#[frb(sync)]
+pub fn list_media_without_thumb(limit: i64) -> Result<Vec<String>, String> {
+    db()?.list_media_without_thumb(limit)
+}
+
+/// Records a generated thumbnail path (JSON map mediaId -> absolute path).
+#[frb(sync)]
+pub fn save_thumbnail_paths(json: String) -> Result<i64, String> {
+    let map: std::collections::HashMap<String, String> = serde_json::from_str(&json)
+        .map_err(|e| format!("invalid thumbnail map: {e}"))?;
+    let db = db()?;
+    let mut count = 0i64;
+    for (media_id, path) in map {
+        db.set_thumbnail_path(&media_id, &path)?;
+        count += 1;
+    }
+    Ok(count)
+}
+
 // ── Captions & hashtags (PRD Part 2 §6.3) ──────────────────────────────────
 
 #[frb(sync)]

@@ -31,8 +31,14 @@ class _PhotosScreenState extends State<PhotosScreen> {
     _loadPage();
     // PRD Part 2 §4.1: after granting photo access, auto-scan on first run
     // so the grid fills without the user hunting for a button.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (core.countMedia() == 0) _scanGallery();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (core.countMedia() == 0) {
+        _scanGallery();
+      } else {
+        // Items already in DB — generate missing thumbnails (G1).
+        await _ensureThumbnails();
+        if (mounted) setState(() {});
+      }
     });
   }
 
@@ -160,13 +166,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   /// Scans the device gallery through the native MediaStore channel, imports
-  /// the results into the Rust core, then refreshes the timeline.
+  /// the results into the Rust core, generates missing thumbnails (G1), then
+  /// refreshes the timeline.
   Future<void> _scanGallery() async {
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
     try {
       final json = await MediaScan.scanGalleryJson();
       final added = core.importScanResults(json: json);
+      await _ensureThumbnails();
       if (!mounted) return;
       setState(() => _items.clear());
       await _loadPage(refresh: true);
@@ -181,6 +189,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
         ),
       );
     }
+  }
+
+  /// Lazy thumbnail pipeline (PRD Part 2 §7.1, G1): ask the native side for
+  /// small JPEGs only for items whose thumb_status != CACHED, then persist.
+  Future<void> _ensureThumbnails() async {
+    final missing = core.listMediaWithoutThumb(limit: 500);
+    if (missing.isEmpty) return;
+    final mapJson = await MediaScan.generateThumbnails(ids: missing);
+    core.saveThumbnailPaths(json: mapJson);
   }
 }
 

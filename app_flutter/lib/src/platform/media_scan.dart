@@ -14,4 +14,15 @@ class MediaScan {
     );
     return result ?? '[]';
   }
+
+  /// Generates small JPEG thumbnails for [ids] (MediaStore native thumbs,
+  /// anti-OOM) and returns a JSON map { mediaId -> absolute path }.
+  static Future<String> generateThumbnails({required List<String> ids}) async {
+    if (ids.isEmpty) return '{}';
+    final result = await _channel.invokeMethod<String>(
+      'generateThumbnails',
+      {'ids': ids},
+    );
+    return result ?? '{}';
+  }
 }

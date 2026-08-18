@@ -1033,6 +1033,34 @@ impl Db {
         )
         .map(|_| ())
     }
+
+    /// Stores a generated thumbnail path and marks it CACHED (G1).
+    pub fn set_thumbnail_path(&self, media_id: &str, path: &str) -> Result<(), String> {
+        self.exec(
+            "UPDATE media_items SET thumbnail_path = ?, thumb_status = 'CACHED' WHERE id = ?",
+            &[
+                (1usize, Value::String(path.to_string())),
+                (2usize, Value::String(media_id.to_string())),
+            ],
+        )
+        .map(|_| ())
+    }
+
+    /// List media ids whose thumbnail is not yet cached (G1 lazy generation:
+    /// only request what is missing).
+    pub fn list_media_without_thumb(&self, limit: i64) -> Result<Vec<String>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id FROM media_items WHERE thumb_status IS NULL OR thumb_status != 'CACHED' LIMIT ?")
+            .map_err(|e| e.to_string())?;
+        stmt.bind(&[(1usize, Value::Integer(limit))][..])
+            .map_err(|e| e.to_string())?;
+        let mut out = Vec::new();
+        while let State::Row = stmt.next().map_err(|e| e.to_string())? {
+            out.push(stmt.read::<String, _>(0).map_err(|e| e.to_string())?);
+        }
+        Ok(out)
+    }
 }
 
 fn read_upload_row(stmt: &Statement) -> Result<Upload, String> {

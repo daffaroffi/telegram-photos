@@ -1,14 +1,21 @@
 package com.telegramphotos.app
 
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Size
 import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Native MediaStore scanner exposed to Flutter via a MethodChannel
@@ -32,8 +39,65 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 val folder = call.argument<String>("folder") ?: ""
                 result.success(scanMediaStore(folder))
             }
+            "generateThumbnails" -> {
+                val ids = call.argument<List<String>>("ids") ?: emptyList()
+                result.success(generateThumbnails(ids))
+            }
             else -> result.notImplemented()
         }
+    }
+
+    /**
+     * Generates small JPEG thumbnails for the given media ids and stores them
+     * under filesDir/thumbs/. Returns a JSON map { mediaId -> absolute path }.
+     * Uses MediaStore's built-in thumbnails (no full decode = anti-OOM, PRD
+     * Part 2 §7.1 pipeline tier 2: ~256px).
+     */
+    private fun generateThumbnails(ids: List<String>): String {
+        val ctx = appContext ?: return "{}"
+        val out = JSONObject()
+        val thumbsDir = File(ctx.filesDir, "thumbs").apply { mkdirs() }
+        val resolver = ctx.contentResolver
+
+        for (id in ids) {
+            try {
+                // Scan stores IDs as "${contentUri}_${numericId}".
+                // Extract the numeric part and rebuild a proper content URI.
+                val lastUnderscore = id.lastIndexOf('_')
+                val numericId = if (lastUnderscore > 0) id.substring(lastUnderscore + 1).toLong() else 0L
+                val isVideo = id.contains("/video/")
+                val baseUri = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                              else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                val contentUri = ContentUris.withAppendedId(baseUri, numericId)
+                val thumb = if (Build.VERSION.SDK_INT >= 29) {
+                    resolver.loadThumbnail(contentUri, Size(256, 256), null)
+                } else {
+                    // Pre-29 fallback: decode with inSampleSize (anti-OOM).
+                    val bmp = resolver.openInputStream(contentUri)?.use { ins ->
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeStream(ins, null, bounds)
+                        var sample = 1
+                        while (bounds.outWidth / sample > 512 || bounds.outHeight / sample > 512) sample *= 2
+                        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                        resolver.openInputStream(contentUri)?.use { ins2 ->
+                            BitmapFactory.decodeStream(ins2, null, opts)
+                        }
+
+
+                    }
+                    bmp ?: continue
+                }
+                val file = File(thumbsDir, "${id.hashCode()}.jpg")
+                FileOutputStream(file).use { fos ->
+                    thumb.compress(Bitmap.CompressFormat.JPEG, 82, fos)
+                }
+                out.put(id, file.absolutePath)
+                thumb.recycle()
+            } catch (e: Exception) {
+                Log.w(TAG, "thumb failed for $id: ${e.message}")
+            }
+        }
+        return out.toString()
     }
 
     private fun scanMediaStore(folder: String): String {
