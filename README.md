@@ -33,7 +33,9 @@ importer Google Photos via OAuth2 + Library API.
 - `ContentObserver` untuk deteksi media baru secara real-time.
 - Ekstraksi EXIF offline: tanggal, GPS, model kamera, ISO, aperture, focal length.
 - Hash SHA-256 per file untuk deduplikasi & verifikasi integritas.
-- Thumbnail WebP bertingkat + BlurHash dihasilkan lokal.
+- Scan galeri **tanpa decode penuh** (anti-OOM): thumbnail dibuat decoder
+  native Android, dimensi dibaca dari header, EXIF tetap diekstrak.
+- Thumbnail WebP bertingkat + BlurHash untuk alur berbasis path (desktop).
 
 ### 3. Auto-backup background (WorkManager)
 - Periodic worker 15 menit memanggil mesin backup Rust via JNI (database &

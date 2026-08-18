@@ -49,6 +49,11 @@ worker (via JNI). Tidak ada duplikasi logika.
 - Alur login: `request_login_code` (OTP) → `sign_in` → jika
   `PasswordRequired` maka `check_password` (2FA). Login QR via
   `auth.exportLoginToken` + polling `is_authorized`.
+- `cmd_check_connection` — **cold start auto-restore**: jika client belum
+  ada di memori, baca `api_id` dari settings lalu buka sesi dari disk
+  (`telegram.session`, SQLite). Sesi tersimpan otomatis oleh Grammers; tanpa
+  ini aplikasi selalu menampilkan layar login dan meminta OTP baru setiap
+  kali dibuka.
 - Semua kesalahan Telegram dipetakan ke pesan ramah pengguna
   (`PHONE_NUMBER_BANNED`, `FLOOD_WAIT`, `API_ID_INVALID`, …).
 
@@ -88,10 +93,17 @@ worker (via JNI). Tidak ada duplikasi logika.
 
 ### 2.6 `media.rs` — Pipeline media lokal
 
-- `sha256_file` — integritas & dedup.
-- `extract_exif` — tanggal, GPS, kamera, ISO, aperture, focal length.
-- `generate_thumbnails` — WebP mikro (grid) + sedang (preview).
+- `sha256_file` — integritas & dedup (streaming).
+- `extract_exif` — tanggal, GPS, kamera, ISO, aperture, focal length (header-only).
+- `image_dimensions` — dimensi dari header tanpa decode penuh (anti-OOM).
+- `generate_thumbnails` — WebP mikro (grid) + sedang (preview); dipakai alur
+  berbasis path (desktop/`cmd_add_local_files`).
 - `encode_blurhash` — placeholder saat thumbnail belum siap.
+
+> **Scan Android tidak decode foto**: decode penuh di Rust saat scan (2× per
+> foto) menyebabkan OOM force-close di galeri besar. Scan hanya membaca header
+> (dimensi, EXIF) + hash streaming; thumbnail 256 px dibuat decoder native
+> Android (`MediaPlugin.makeThumbnail`).
 
 ### 2.7 `backup.rs` — State machine & Free Up Space
 
@@ -135,12 +147,18 @@ worker (via JNI). Tidak ada duplikasi logika.
 
 ### 2.10 `android_media.rs` — Jembatan JNI
 
-- `scan_gallery` → `MediaPlugin.scanMediaStore` (JSON array).
+- `scan_gallery` → `MediaPlugin.scanMediaStore` (JSON array; tiap item
+  menyertakan `thumbnailPath` native).
 - `constraints_ok` → `MediaPlugin.checkConstraints` (Wi-Fi/charging nyata).
 - `materialize_media` → `MediaPlugin.materializeMedia` (salin `content://`
   ke penyimpanan privat agar Rust bisa baca).
 - `register_content_observer` → observer media baru.
 - Semua via `with_env` (attach JVM + `ndk_context`).
+
+> `ndk_context` di-init oleh **`JNI_OnLoad` kita sendiri** (`bg_worker.rs`):
+> runtime Tauri (tao/wry) tidak meng-inisialisasi crate `ndk-context`, jadi
+> tanpa hook ini setiap panggilan JNI panic `"android context was not
+> initialized"` dan aplikasi force-close saat startup.
 
 ### 2.11 `bg_worker.rs` — Entry JNI untuk WorkManager
 
@@ -159,7 +177,7 @@ worker (via JNI). Tidak ada duplikasi logika.
 
 | File | Tanggung jawab |
 |---|---|
-| `MediaPlugin.kt` | Static bridge JNI: scan MediaStore (images+video), materialisasi URI, constraints, ContentObserver, channel notifikasi, update notifikasi progres |
+| `MediaPlugin.kt` | Static bridge JNI: scan MediaStore (images+video, projection per API level), thumbnail native 256 px, materialisasi URI, constraints, ContentObserver, channel notifikasi, update notifikasi progres |
 | `BackgroundWorker.kt` | `CoroutineWorker` — load library Rust + panggil `runBackup(dataDir)` |
 | `BackupScheduler.kt` | Jadwalkan `PeriodicWorkRequest` 15 menit (ExistingPeriodicWorkPolicy.UPDATE) |
 | `MainActivity.kt` | Init plugin, minta izin media/notifikasi, daftarkan observer, jadwalkan backup |
