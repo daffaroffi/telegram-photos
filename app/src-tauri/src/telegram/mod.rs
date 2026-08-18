@@ -77,10 +77,10 @@ pub async fn ensure_client_initialized_with_dir(
 ) -> Result<Client, String> {
     #[cfg(target_os = "android")]
     {
+        // Only the JavaVM handle is required (seeded by our `JNI_OnLoad`); the
+        // Activity handle is never set because we don't use ndk-glue.
         let mut count = 0;
-        while ndk_context::android_context().vm().is_null()
-            || ndk_context::android_context().context().is_null()
-        {
+        while ndk_context::android_context().vm().is_null() {
             if count >= 200 {
                 return Err("Timeout waiting for Android JNI context initialization.".into());
             }

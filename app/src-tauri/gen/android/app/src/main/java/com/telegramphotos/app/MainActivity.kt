@@ -10,8 +10,8 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
-    enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
 
     // Give the JNI bridge a Context and create the notification channel.
     MediaPlugin.initialize(this)

@@ -27,6 +27,30 @@ use std::sync::atomic::AtomicBool;
 #[cfg(target_os = "android")]
 use std::sync::Arc;
 
+/// Initializes the JNI context so `with_env` (android_media.rs) and the
+/// background worker can attach to the JVM.
+///
+/// Tauri's tao/wry runtimes do NOT seed the `ndk-context` crate, so without
+/// this hook any call to `ndk_context::android_context()` panics with
+/// "android context was not initialized" (crashing the app on startup via
+/// `tauri::mobile_entry_point`'s `stop_unwind`). `JNI_OnLoad` runs as soon as
+/// the native library is loaded by `TauriActivity`, i.e. before `setup()`.
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "system" fn JNI_OnLoad(
+    vm: *mut jni::sys::JavaVM,
+    _reserved: *mut std::ffi::c_void,
+) -> jni::sys::jint {
+    use jni::sys::JNI_VERSION_1_6;
+    unsafe {
+        ndk_context::initialize_android_context(
+            vm as *mut std::ffi::c_void,
+            std::ptr::null_mut(),
+        );
+    }
+    JNI_VERSION_1_6
+}
+
 #[cfg(target_os = "android")]
 #[no_mangle]
 pub extern "system" fn Java_com_telegramphotos_app_BackgroundWorker_runBackup(
@@ -134,7 +158,7 @@ fn notify_progress(event: &BackupProgressEvent) {
             .attach_current_thread()
             .map_err(|e| e.to_string())?;
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         let file = env
             .new_string(&event.file_name)
@@ -166,7 +190,7 @@ fn notify_done(count: i64) {
             .attach_current_thread()
             .map_err(|e| e.to_string())?;
         let class = env
-            .find_class("com/telegram/photos/MediaPlugin")
+            .find_class("com/telegramphotos/app/MediaPlugin")
             .map_err(|e| e.to_string())?;
         env.call_static_method(
             class,
