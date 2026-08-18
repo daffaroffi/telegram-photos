@@ -132,6 +132,9 @@ Detail lengkap (prasyarat, signing keystore, struktur perintah): lihat
 
 ## Referensi riset
 
+- **[docs/PRD_PART2.md](docs/PRD_PART2.md)** — PRD v2: definisi ulang UX ramah
+  pengguna awam (IA 4 tab gaya Google Photos, QR login, progress hub, badge
+  status) dengan meniru pola Telephoto dan mempertahankan keunggulan teknis.
 - **[docs/TELEPHOTO_RE.md](docs/TELEPHOTO_RE.md)** — hasil reverse engineering
   aplikasi pesaing Telephoto v69 (Flutter + Bot API): arsitektur, model data,
   pola UI/UX yang layak ditiru, dan kelemahan yang menjadi pembeda kita.
