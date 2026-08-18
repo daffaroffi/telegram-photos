@@ -345,9 +345,11 @@ Tier thumbnail — **semua hasil decoder native Android / Rust, tanpa decode pen
 | 2 | 256 px | JPEG ≈15–25 KB | Grid 1–3 kolom (standar) | decoder native (sudah dipakai scan) |
 | 3 | 1200 px | JPEG ≈100–200 KB | Lightbox / preview (generated on demand, di-cache) | decode sekali, bukan tiap buka |
 
-Aturan pipeline:
+Aturan pipeline (status per item mengikuti pola G1):
 - **Lazy generation**: tier 2 dibuat saat scan (sekali); tier 1 & 3 dibuat **on-demand**
   saat grid butuh / foto dibuka — bukan semua di depan (hemat waktu scan & disk).
+- **State machine thumbnail** (pola G1): `thumb_status` = CACHED/UNCACHED/FAILED di DB;
+  FAILED tidak diulang terus (render BlurHash, retry saat idle).
 - **Queue + worker**: `thumb_pipeline.rs` antrean berprioritas (visible > prefetch > idle),
   concurrency dibatasi oleh device tier (§7.8), **tidak pernah** di thread UI.
 - **Cache disk** `thumbs/`: nama file = `sha256[:16] + tier`, dedup otomatis; LRU eviction;
@@ -369,16 +371,19 @@ Aturan pipeline:
 - Heap Android default cukup (256 MB): scan anti-OOM v1.2 dipertahankan (tanpa decode penuh).
 - **BlurHash sebagai placeholder instan** — grid tidak pernah kosong/putih saat scroll cepat.
 
-### 7.4 Virtualisasi grid (spesifik Tauri/WebView + React)
+### 7.4 Virtualisasi grid (spesifik Tauri/WebView + React; pola G3)
 - **Windowed rendering** (pola react-window): render hanya item visible + buffer 1 layar
   atas/bawah; recycle DOM node (bukan create/destroy) saat scroll.
-- Row/kolom dihitung dari `date_taken_timestamp` via **keyset pagination** (Part 1 §11.3) —
-  bukan `OFFSET`.
+- **Incremental page load** (pola `PagingSource`): 100 item/halaman via keyset pagination
+  (Part 1 §11.3), bukan `OFFSET`; halaman berikut dimuat saat mendekati bawah.
+- **Diff minimal** (pola `DiffUtil`): update hanya tile yang berubah saat DB berubah
+  (scan selesai, status upload berubah) — bukan re-render seluruh grid.
 - **Sticky header + scrubber** dari tabel agregasi `date_groups_summary` (Part 1 §11.3) —
   tanpa full scan.
 - Badge status diambil dari kolom DB (sudah indexed), **bukan** fetch per item.
 - Scroll guard: saat user scroll, prioritas render = visible tiles; thumbnail tier 1
-  di-prefetch hanya 1 layar (2 layar di high-end).
+  di-prefetch hanya 1 layar (2 layar di high-end); tile di-reuse selalu mulai dari
+  placeholder (hindari flash gambar lama — pola ViewHolder recycle).
 
 ### 7.5 Database (Part 1 §11.3 + tabel baru)
 - PRAGMA: WAL, `synchronous=NORMAL`, `cache_size=-8000`, `temp_store=MEMORY`,
@@ -396,16 +401,20 @@ Aturan pipeline:
 - Video: range-request buffer 5 s; seek < 500 ms (target §2.3).
 - Upload throughput target > 80% link tanpa FloodWait (log flood counter di `upload_errors`).
 
-### 7.7 Background & baterai (WorkManager)
+### 7.7 Background & baterai (WorkManager; pola G6)
 - Satu run worker = pipeline utuh: **scan → hash → thumb tier2 → upload** (batch), bukan job terpisah.
-- Constraint: Wi-Fi only (default) + charging opsional — sudah ada; **thermal/baterai <20%
-  pause otomatis** (Part 1 §11.5).
+- Constraint (pola Google `UnmeteredNetwork` + `ChargingOnly`): `NETWORK_UNMETERED` (Wi-Fi)
+  default + opsi `CONNECTED`; opsi baru `chargingOnly` di Settings → constraint `Charging`.
+  **thermal/baterai <20% pause otomatis** (Part 1 §11.5).
+- **Prioritas worker**: upload = default; thumbnail/OCR/face = **low** (idle saja) — upload
+  tidak pernah kelaparan oleh job sampingan.
 - Upload concurrency: **1 stream default** (flood-safe), 2 di high-end + Wi-Fi.
 - Notifikasi hanya ringkas saat batch selesai / error (bukan per item) — §8.
 - Budget idle: < 1%/jam (§2.3).
 
-### 7.8 Device performance tiers (meniru `device_performance_tuning` Telephoto)
-Deteksi via `ActivityManager.MemoryInfo` + jumlah core + API level, di-cache `device_tier.rs`:
+### 7.8 Device performance tiers (Telephoto `device_performance_tuning` + Google `isLowRamDevice`)
+Deteksi (pola G7): `isLowRamDevice` + `getMemoryClass` + jumlah core + API level,
+di-cache `device_tier.rs`. `onTrimMemory` → event ke JS → flush cache & cancel prefetch.
 
 | Tier | RAM | Perilaku |
 |---|---|---|
@@ -420,6 +429,72 @@ Deteksi via `ActivityManager.MemoryInfo` + jumlah core + API level, di-cache `de
 - Progress hub events di-batch 50 ms sebelum dikirim ke JS (ribuan event/detik → ≤ 20/s di UI).
 - Update DOM pakai microtask/`requestAnimationFrame`; tidak pernah render progres > 10×/detik.
 - Logging hanya di debug build; release zero log hot-path (perf & privasi).
+
+### 7.11 Pola performa Google Photos (terkonfirmasi dari APK 7.78 — diadopsi)
+
+> Sumber: reverse engineering `com.google.android.apps.photos` v7.78
+> (`snipoff/photos-apkm/`). Bukti langsung di dex: `Glide`, `RecyclerView` +
+> `PagingSource`/`ListAdapter`, `THUMBNAIL_CACHED/UNCACHED/FAILED`, `BackupQueueTable`
+> + `backupQueueSizeInBytes`, `ExoPlayer`, `ChargingOnlyLowPriorityBackgroundJobWorker`,
+> `UnmeteredNetwork`, `onTrimMemory`/`isLowRamDevice`/`getMemoryClass`, `FreeUpSpaceThresholdMb`,
+> `libnative.so` 48 MB + `libwebp_android.so` + `libsqlite3x.so`.
+
+**G1 — Thumbnail state machine (`THUMBNAIL_CACHED / UNCACHED / FAILED`)**
+Setiap item punya status thumbnail eksplisit di DB (bukan sekadar ada/tidak file).
+- `CACHED` → langsung render. `UNCACHED` → antre generate (lazy). `FAILED` → jangan
+  diulang terus; render BlurHash + retry saat idle.
+- Kolom baru di `media_items`: `thumb_status TEXT` (CACHED/UNCACHED/FAILED) + `thumb_path`
+  (sudah ada). Pipeline §7.1 meng-update status ini, bukan hanya menulis file.
+- **Dipakai juga untuk badge cloud** — satu sumber kebenaran status render & status backup.
+
+**G2 — Cache 3-tier ala Glide (memory → disk → decode)**
+Pola Glide yang kita adaptasi ke stack Tauri/WebView:
+- **Memory tier**: LRU bitmap/objectURL terikat (64–128 MB, §7.3) — hit tercepat.
+- **Disk tier**: `thumbs/` + `download_cache/` (LRU, §7.6) — hit tanpa decode ulang.
+- **Source tier**: decode dari file lokal / stream MTProto hanya saat dua tier di atas miss.
+- Placeholder (BlurHash) → fade-in saat siap (bukan pop mendadak) — konsisten dengan G1.
+- Decode selalu `inSampleSize`/hardware downsampling (part 1 §11.2) — tidak pernah decode penuh.
+
+**G3 — Grid: RecyclerView + Paging ala AndroidX**
+Padanan di stack kita (memperkuat §7.4):
+- **Incremental page load**: grid memuat 100 item per halaman (keyset pagination),
+  bukan memuat semua lalu divirtualisasi — page berikutnya dimuat saat mendekati bawah
+  (pola `PagingSource`/`PagingData`).
+- **Diff/reconciliation**: saat DB berubah (scan/upload selesai), UI melakukan diff
+  minimal (pola `DiffUtil`) — hanya tile yang berubah di-update, bukan re-render seluruh grid.
+- **ViewHolder recycling**: DOM node di-recycle (sudah §7.4) + placeholder instan saat
+  tile di-reuse (hindari flash gambar lama).
+
+**G4 — Persistent Backup Queue (banner "Backing up X items · Y GB")**
+Google Photos menyimpan antrean backup di tabel (`BackupQueueTable`) dengan agregat
+`backupQueueSizeInBytes` & `backupQueueLength` — banner-nya dibaca dari agregat ini,
+bukan dari hitungan runtime.
+- Kita: tabel `uploads` (§6.2) + **view agregat** `uploads_summary(status, count, bytes)`
+  di-query per banner update (cache 1 s) → copy banner: "Backing up 3,420 photos · 12.4 GB".
+- Anti-jank: agregat via SQL `GROUP BY status` (indexed), bukan loop di JS.
+
+**G5 — Video: ExoPlayer-equivalent**
+Google memakai ExoPlayer/Media3 (hardware decode + adaptive buffering). Di stack kita:
+- HTML5 `<video>` + **range request** (Part 1 §11.4) — buffering 5 s, seek < 500 ms.
+- (P1) evaluasi `ExoPlayer` via plugin Kotlin untuk 4K/HDR — keputusan setelah benchmark
+  WebView di device nyata.
+
+**G6 — WorkManager constraint ala Google (`UnmeteredNetwork` + `ChargingOnly` + low priority)**
+- Backup worker: `NetworkType.UNMETERED` (Wi-Fi) default + opsi `CONNECTED` (data).
+- Opsi `chargingOnly` di Settings (baru) → constraint `Charging` ditambah.
+- Prioritas worker: **low** untuk thumbnail/OCR/face (idle saja), **default** untuk upload
+  — upload tidak pernah kalah kelaparan oleh job sampingan.
+
+**G7 — Memory awareness ala Google (`isLowRamDevice` / `getMemoryClass` / `onTrimMemory`)**
+- Tier §7.8 di-deteksi dari `isLowRamDevice` + `getMemoryClass` (bukan tebakan).
+- `onTrimMemory` di MainActivity → event ke JS → flush image cache + cancel prefetch
+  (grid tetap mulus, heap aman).
+
+**G8 — Free Up Space: threshold + cancellable**
+- `FreeUpSpaceThresholdMb`: hanya tawarkan jika reclaimable > ambang (mis. 500 MB) —
+  hindari tombol menyesatkan untuk ruang kecil.
+- Eksekusi sebagai task Progress Hub (**cancellable** — `FreeUpSpaceStopBroadcastReceiver`
+  milik Google menunjukkan pola yang sama) + undo 5 detik (§4.4).
 
 ### 7.10 Verifikasi performa (wajib tiap milestone)
 1. **Synthetic 100k**: generator data uji (100k baris + file dummy) → ukur first paint,
@@ -540,7 +615,8 @@ Deteksi via `ActivityManager.MemoryInfo` + jumlah core + API level, di-cache `de
 
 | Fase | Isi | Estimasi |
 |---|---|---|
-| **P0 — v2.0 "Awam Core"** | IA baru (4 tab) · QR login onboarding · backup banner + badge · **Task Progress Hub** · upload state machine + resume + upload_errors · hash worker · **device_tier** · **thumb pipeline lazy** · captions & hashtags · collections dasar · unified preview polish · encrypted DB backup · migrasi schema v1→v2 · **perf baseline (7.10: scan, cold start, RAM)** | 3 minggu |
+| **P0 — v2.0 "Awam Core"** | IA baru (4 tab) · QR login onboarding · backup banner + badge · **Task Progress Hub** · upload state machine + resume + upload_errors · hash worker · **device_tier (G7)** · **thumb pipeline lazy + state machine G1** · captions & hashtags · collections dasar · unified preview polish · encrypted DB backup · migrasi schema v1→v2 · **adopsi G2 (cache 3-tier), G4 (uploads_summary banner), G6 (constraint + priority), G8 (free-space threshold)** · **perf baseline (7.10: scan, cold start, RAM)** | 3 minggu |
+| **P1 — v2.1 "Delight"** | Memories · Reel mode · cloud view options + grid control · tab reorder · widget home screen · restore selektif · FTS5 caption search · **G3 (incremental page + diff update)** · **G5 (video benchmark, ExoPlayer eval)** · **perf re-verify (scroll 100k)** | 2 minggu |
 | **P1 — v2.1 "Delight"** | Memories · Reel mode · cloud view options + grid control · tab reorder · widget home screen · restore selektif · FTS5 caption search · **perf re-verify (scroll 100k)** | 2 minggu |
 | **P2 — v2.2 "Smart & Offline"** | OCR offline (Tesseract per-bahasa) · face recognition (model < 20 MB, ABI-split) · people grouping · QR contact · **perf re-verify (OCR/face tidak mengganggu scroll)** | 3 minggu |
 
