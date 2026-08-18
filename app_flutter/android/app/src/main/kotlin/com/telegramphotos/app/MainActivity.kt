@@ -1,4 +1,4 @@
-package com.telegramphotos.telegram_photos
+package com.telegramphotos.app
 
 import io.flutter.embedding.android.FlutterActivity
 

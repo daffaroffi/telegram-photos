@@ -1,0 +1,136 @@
+//! flutter_rust_bridge bridge over `telegram_photos_core`.
+//!
+//! The Rust core is a separate crate (no Tauri). `init_core` opens the SQLite
+//! database once; all other functions are thin read/write calls on it.
+
+use flutter_rust_bridge::frb;
+use std::path::Path;
+use std::sync::OnceLock;
+use telegram_photos_core::db::Db;
+use telegram_photos_core::models::{
+    Album, AppSettings, Collection, MediaItem, Upload, UploadsSummary, VaultInfo,
+};
+
+static DB: OnceLock<Db> = OnceLock::new();
+
+/// Opens (and migrates) the local database. Call once at app startup with the
+/// path from `path_provider` (e.g. `getApplicationSupportDirectory`).
+#[frb(sync)]
+pub fn init_core(db_path: String) -> Result<(), String> {
+    if let Some(parent) = Path::new(&db_path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let db = Db::open(Path::new(&db_path))?;
+    DB.set(db).map_err(|_| "core already initialized".to_string())
+}
+
+fn db() -> Result<&'static Db, String> {
+    DB.get().ok_or_else(|| "core not initialized — call init_core first".to_string())
+}
+
+// ── Overview / timeline ────────────────────────────────────────────────────
+
+/// Total non-trashed items (grid badge & boot summary).
+#[frb(sync)]
+pub fn count_media() -> Result<i64, String> {
+    db()?.count_media()
+}
+
+/// Keyset-paginated timeline (PRD Part 1 §11.3): pass `before_timestamp` from
+/// the last item of the previous page to page forward without OFFSET.
+#[frb(sync)]
+pub fn list_timeline(before_timestamp: Option<i64>, limit: i64) -> Result<Vec<MediaItem>, String> {
+    db()?.list_media_timeline(before_timestamp, limit)
+}
+
+pub fn get_media(id: String) -> Result<Option<MediaItem>, String> {
+    db()?.get_media(&id)
+}
+
+// ── Settings ───────────────────────────────────────────────────────────────
+
+#[frb(sync)]
+pub fn get_settings() -> Result<AppSettings, String> {
+    db()?.get_settings()
+}
+
+#[frb(sync)]
+pub fn save_settings(settings: AppSettings) -> Result<(), String> {
+    db()?.save_settings(&settings)
+}
+
+// ── Vault status ───────────────────────────────────────────────────────────
+
+#[frb(sync)]
+pub fn get_vault_info() -> Result<VaultInfo, String> {
+    db()?.get_vault_info()
+}
+
+// ── Uploads (PRD Part 2 §6.2) ──────────────────────────────────────────────
+
+#[frb(sync)]
+pub fn list_uploads_by_status(status: String) -> Result<Vec<Upload>, String> {
+    db()?.list_uploads_by_status(&status)
+}
+
+/// Backup banner aggregate (G4): one indexed GROUP BY.
+#[frb(sync)]
+pub fn uploads_summary() -> Result<UploadsSummary, String> {
+    db()?.uploads_summary()
+}
+
+// ── Captions & hashtags (PRD Part 2 §6.3) ──────────────────────────────────
+
+#[frb(sync)]
+pub fn get_caption(media_id: String) -> Result<Option<String>, String> {
+    db()?.get_caption(&media_id)
+}
+
+#[frb(sync)]
+pub fn save_caption(media_id: String, text: String) -> Result<(), String> {
+    db()?.upsert_caption(&media_id, &text)
+}
+
+#[frb(sync)]
+pub fn add_caption_tag(media_id: String, tag: String) -> Result<(), String> {
+    db()?.add_caption_tag(&media_id, &tag)
+}
+
+#[frb(sync)]
+pub fn search_by_hashtag(tag: String) -> Result<Vec<String>, String> {
+    db()?.search_by_hashtag(&tag)
+}
+
+// ── Collections (PRD Part 2 §6.4) ──────────────────────────────────────────
+
+#[frb(sync)]
+pub fn create_collection(name: String) -> Result<Collection, String> {
+    db()?.create_collection(&name)
+}
+
+#[frb(sync)]
+pub fn list_collections() -> Result<Vec<Collection>, String> {
+    db()?.list_collections()
+}
+
+#[frb(sync)]
+pub fn add_to_collection(collection_id: String, media_id: String) -> Result<(), String> {
+    db()?.add_to_collection(&collection_id, &media_id)
+}
+
+#[frb(sync)]
+pub fn remove_from_collection(collection_id: String, media_id: String) -> Result<(), String> {
+    db()?.remove_from_collection(&collection_id, &media_id)
+}
+
+#[frb(sync)]
+pub fn list_collection_items(collection_id: String) -> Result<Vec<MediaItem>, String> {
+    db()?.list_collection_items(&collection_id)
+}
+
+// ── Albums (existing) ──────────────────────────────────────────────────────
+
+#[frb(sync)]
+pub fn list_albums() -> Result<Vec<Album>, String> {
+    db()?.list_albums()
+}

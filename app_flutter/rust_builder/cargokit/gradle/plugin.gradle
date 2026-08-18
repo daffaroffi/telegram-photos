@@ -59,6 +59,23 @@ abstract class CargoKitBuildTask extends DefaultTask {
 
         def rootProjectDir = project.rootProject.projectDir.toString()
 
+        // run_build_tool.cmd uses %FLUTTER_ROOT% to locate the dart binary.
+        // When gradle is invoked directly (not via `flutter build`), that env
+        // var is unset, so the build tool silently fails. Read it from
+        // local.properties instead.
+        def flutterSdkPath = null
+        def localProps = new File(project.rootProject.projectDir, "local.properties")
+        if (localProps.exists()) {
+            localProps.eachLine { line ->
+                if (line.startsWith("flutter.sdk=")) {
+                    flutterSdkPath = line.substring("flutter.sdk=".length())
+                }
+            }
+        }
+        if (flutterSdkPath == null) {
+            throw new GradleException("flutter.sdk not set in local.properties")
+        }
+
         // Gradle 9 removed Project.exec(); use providers.exec (Gradle 8.2+).
         def execResult
         if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
@@ -85,6 +102,7 @@ abstract class CargoKitBuildTask extends DefaultTask {
             environment "CARGOKIT_MIN_SDK_VERSION", minSdkVersion
             environment "CARGOKIT_TARGET_PLATFORMS", targetPlatforms.join(",")
             environment "CARGOKIT_JAVA_HOME", System.properties['java.home']
+            environment "FLUTTER_ROOT", flutterSdkPath
         }.result.get()
         if (execResult.exitValue != 0) {
             throw new GradleException("cargokit build failed: ${execResult.exitValue}")
