@@ -10,7 +10,7 @@ use crate::telegram;
 
 /// Opaque handle to the Telegram state. Dart holds this via Arc.
 pub struct TelegramHandle {
-    inner: std::sync::Arc<telegram::TelegramState>,
+    pub(crate) inner: std::sync::Arc<telegram::TelegramState>,
 }
 
 impl TelegramHandle {
@@ -27,17 +27,14 @@ impl TelegramHandle {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Check if there is an existing authorized session (cold start).
-/// Tries to restore from DB if no in-memory client exists.
 pub async fn check_connection(handle: &TelegramHandle, app_data_dir: String) -> bool {
     let state = &handle.inner;
-    // Quick check: is the client already initialized and authorized?
     {
         let guard = state.client.lock().await;
         if let Some(client) = guard.as_ref() {
             return client.is_authorized().await.unwrap_or(false);
         }
     }
-    // Cold start: try to restore session from DB + session file.
     let dir = std::path::PathBuf::from(&app_data_dir);
     if dir.exists() {
         let db = crate::api::db::db();
@@ -111,8 +108,18 @@ pub async fn logout(handle: &TelegramHandle, app_data_dir: String) -> Result<boo
     telegram::logout(&handle.inner, &dir).await
 }
 
+/// Get vault info (file count, size).
+pub async fn get_vault_info() -> telegram_photos_core::models::VaultInfo {
+    let db = crate::api::db::db();
+    match db {
+        Ok(db) => telegram::get_vault_info(db).await.unwrap_or_default(),
+        Err(_) => telegram_photos_core::models::VaultInfo::default(),
+    }
+}
+
 /// Upload a single photo file to the Telegram vault channel.
-/// Returns the Telegram message ID on success.
+/// If encryption is enabled in settings and vault is unlocked, encrypts
+/// the file before upload. Returns the Telegram message ID on success.
 pub async fn upload_photo(
     handle: &TelegramHandle,
     file_path: String,
@@ -125,24 +132,59 @@ pub async fn upload_photo(
     // Ensure vault channel exists (creates if needed)
     let _ = telegram::vault::get_or_create_vault(&client, db, &handle.inner).await?;
     let vault_peer = telegram::vault::peer_from_vault(&client, &handle.inner).await?;
-    let file_path = std::path::PathBuf::from(&file_path);
-    let file_bytes = tokio::fs::read(&file_path)
+
+    // Check if encryption is enabled and vault is unlocked.
+    let settings = db.get_settings().unwrap_or_default();
+    let vault_status = crate::api::crypto::vault_status()
+        .unwrap_or(crate::api::crypto::VaultStatus {
+            enabled: false,
+            passphrase_set: false,
+            unlocked: false,
+        });
+
+    let upload_path = if settings.client_encryption_enabled
+        && vault_status.enabled
+        && vault_status.unlocked
+    {
+        // Encrypt file before upload.
+        let enc_path = format!("{}.tdenc", file_path);
+        crate::api::crypto::encrypt_file(file_path.clone(), enc_path.clone())?;
+        enc_path
+    } else {
+        file_path.clone()
+    };
+
+    let file_path_obj = std::path::PathBuf::from(&upload_path);
+    let file_bytes = tokio::fs::read(&file_path_obj)
         .await
         .map_err(|e| format!("Failed to read file: {}", e))?;
     let size = file_bytes.len();
     let reader = std::io::Cursor::new(file_bytes);
     let boxed_reader: Box<dyn tokio::io::AsyncRead + Unpin + Send> = Box::new(reader);
+
+    let upload_name = if upload_path != file_path {
+        format!("{}.tdenc", file_name)
+    } else {
+        file_name
+    };
+
     let msg_id = telegram::upload::upload_stream_to_peer(
         &client,
         &vault_peer,
         boxed_reader,
         size,
-        file_name,
+        upload_name,
         &mime_type,
         is_video,
         None,
         |_, _| {},
     )
     .await?;
+
+    // Cleanup encrypted temp file if we created one.
+    if upload_path != file_path {
+        let _ = std::fs::remove_file(&upload_path);
+    }
+
     Ok(msg_id as i64)
 }
