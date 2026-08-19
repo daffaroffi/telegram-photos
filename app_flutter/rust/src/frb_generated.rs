@@ -353,7 +353,7 @@ fn wire__crate__api__telegram__check_connection_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "check_connection",
             port: Some(port_),
@@ -369,35 +369,20 @@ fn wire__crate__api__telegram__check_connection_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
-            >>::sse_decode(&mut deserializer);
+            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
             let api__app_data_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_handle_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_handle,
-                                0,
-                                false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_handle_guard = Some(api_handle.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_handle_guard = api_handle_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::telegram::check_connection(
-                        &*api_handle_guard,
-                        api__app_data_dir,
-                    ))?;
-                    Ok(output_ok)
-                })())
+            move |context| async move {
+                transform_result_sse::<_, ()>(
+                    (move || async move {
+                        let output_ok = Result::<_, ()>::Ok(
+                            crate::api::telegram::check_connection(api_handle, api__app_data_dir)
+                                .await,
+                        )?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -1205,8 +1190,8 @@ const _: fn() = || {
     {
         let AuthCodeResult = None::<crate::api::mirror::AuthCodeResult>.unwrap();
         let _: String = AuthCodeResult.status;
-        let _: Option<i32> = AuthCodeResult.code_length;
-        let _: Option<i32> = AuthCodeResult.resend_after_seconds;
+        let _: Option<u32> = AuthCodeResult.code_length;
+        let _: Option<u64> = AuthCodeResult.resend_after_seconds;
         let _: Option<String> = AuthCodeResult.delivery;
     }
     {
@@ -1417,8 +1402,8 @@ impl SseDecode for crate::api::mirror::AuthCodeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_status = <String>::sse_decode(deserializer);
-        let mut var_codeLength = <Option<i32>>::sse_decode(deserializer);
-        let mut var_resendAfterSeconds = <Option<i32>>::sse_decode(deserializer);
+        let mut var_codeLength = <Option<u32>>::sse_decode(deserializer);
+        let mut var_resendAfterSeconds = <Option<u64>>::sse_decode(deserializer);
         let mut var_delivery = <Option<String>>::sse_decode(deserializer);
         return crate::api::mirror::AuthCodeResult {
             status: var_status,
@@ -1681,17 +1666,6 @@ impl SseDecode for Option<f64> {
     }
 }
 
-impl SseDecode for Option<i32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<i32>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
 impl SseDecode for Option<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1725,6 +1699,28 @@ impl SseDecode for Option<crate::api::mirror::TelegramUser> {
     }
 }
 
+impl SseDecode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u32>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u64>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for (String, bool) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1751,6 +1747,20 @@ impl SseDecode for crate::api::mirror::TelegramUser {
             phone: var_phone,
             is_premium: var_isPremium,
         };
+    }
+}
+
+impl SseDecode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u64::<NativeEndian>().unwrap()
     }
 }
 
@@ -2286,8 +2296,8 @@ impl SseEncode for crate::api::mirror::AuthCodeResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.status, serializer);
-        <Option<i32>>::sse_encode(self.code_length, serializer);
-        <Option<i32>>::sse_encode(self.resend_after_seconds, serializer);
+        <Option<u32>>::sse_encode(self.code_length, serializer);
+        <Option<u64>>::sse_encode(self.resend_after_seconds, serializer);
         <Option<String>>::sse_encode(self.delivery, serializer);
     }
 }
@@ -2473,16 +2483,6 @@ impl SseEncode for Option<f64> {
     }
 }
 
-impl SseEncode for Option<i32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <i32>::sse_encode(value, serializer);
-        }
-    }
-}
-
 impl SseEncode for Option<i64> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2513,6 +2513,26 @@ impl SseEncode for Option<crate::api::mirror::TelegramUser> {
     }
 }
 
+impl SseEncode for Option<u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u32>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u64>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for (String, bool) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2530,6 +2550,20 @@ impl SseEncode for crate::api::mirror::TelegramUser {
         <Option<String>>::sse_encode(self.username, serializer);
         <String>::sse_encode(self.phone, serializer);
         <bool>::sse_encode(self.is_premium, serializer);
+    }
+}
+
+impl SseEncode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for u64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u64::<NativeEndian>(self).unwrap();
     }
 }
 

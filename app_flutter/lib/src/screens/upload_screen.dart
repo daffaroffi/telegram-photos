@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../rust/api/db.dart' as core;
 import '../rust/api/mirror.dart';
-import '../widgets/status_badge.dart';
 
 /// Upload / backup progress screen (PRD Part 2 §4.4).
 ///

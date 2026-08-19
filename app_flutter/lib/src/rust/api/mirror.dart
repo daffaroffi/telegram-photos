@@ -121,7 +121,7 @@ class AppSettings {
 class AuthCodeResult {
   final String status;
   final int? codeLength;
-  final int? resendAfterSeconds;
+  final BigInt? resendAfterSeconds;
   final String? delivery;
 
   const AuthCodeResult({
