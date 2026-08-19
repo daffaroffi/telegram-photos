@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-19
+
+### Fixed
+- Release APK crash: Rust `.so` not bundled in APK (missing Cargokit release build).
+- Tokio reactor panic in `check_connection` on release builds.
+- FRB type mismatches: `AuthCodeResult` fields `code_length` (u32) and `resend_after_seconds` (u64).
+- Unused imports in onboarding, settings, and upload screens.
+
+### Changed
+- `check_connection` is now async (returns `Future<bool>`).
+- `.gitignore` updated to exclude JNI libs and screenshots.
+
 ## [0.3.0] - 2026-08-19
 
 ### Added
