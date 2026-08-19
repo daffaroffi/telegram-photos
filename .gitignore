@@ -59,3 +59,8 @@ app_flutter/README.md
 # Test screenshots (not part of source)
 *.png
 *.jpg
+
+# But keep app icons
+!app_flutter/android/app/src/main/res/mipmap-*/ic_launcher.png
+!app_flutter/android/app/src/main/res/mipmap-*/ic_launcher_round.png
+!app_flutter/android/app/src/main/res/drawable/ic_launcher_foreground.png
