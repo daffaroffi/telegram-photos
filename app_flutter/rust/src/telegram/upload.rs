@@ -194,9 +194,9 @@ pub async fn download_message_to_path(
         .map_err(|e| format!("Gagal mengambil pesan: {}", e))?;
     let message = match messages.first() {
         Some(Some(m)) => m,
-        _ => return Err("Pesan tidak ditemukan.".into()),
+        _ => return Err("Message not found.".into()),
     };
-    let media = message.media().ok_or("Pesan tidak memiliki media.")?;
+    let media = message.media().ok_or("Message has no media.")?;
     if let Some(parent) = dest_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }

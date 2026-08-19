@@ -9,13 +9,22 @@ import '../rust/api/telegram.dart' as tg;
 /// Global Telegram handle from main.dart.
 import '../../main.dart' show telegramHandle;
 
-/// Onboarding screen (PRD Part 2 §2): Telegram login via QR or phone OTP.
+/// Onboarding screen (PRD Part 2 S2): Telegram login via QR or phone OTP.
+///
+/// Called with [onAuthenticated] callback that re-checks auth state
+/// in the parent widget after successful login.
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  final VoidCallback onAuthenticated;
+
+  const OnboardingScreen({super.key, required this.onAuthenticated});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
+
+enum _LoginMethod { qr, phone }
+
+enum _PhoneStep { credential, code, password }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   // API credentials
@@ -32,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _phoneCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  _PhoneStep _phoneStep = _phoneStepCredential;
+  _PhoneStep _phoneStep = _PhoneStep.credential;
 
   // QR login
   String? _qrUrl;
@@ -54,7 +63,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _apiHashCtrl.text.trim().isNotEmpty &&
       int.tryParse(_apiIdCtrl.text.trim()) != null;
 
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // -- Helpers -----------------------------------------------------------------
+
+  Future<String> _appDataDir() async {
+    final dir = await MethodChannel('com.telegramphotos.app/media')
+        .invokeMethod<String>('getAppDataDir');
+    return dir ?? '';
+  }
+
+  // -- Actions -----------------------------------------------------------------
 
   Future<void> _startQRLogin() async {
     if (!_validApiCreds) return;
@@ -86,12 +103,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       try {
         final result = await tg.authQrPoll(handle: telegramHandle);
-        if (result.status == 'authorized' && mounted) {
+        if (result.status == 'authorized') {
           _pollTimer?.cancel();
-          Navigator.of(context).pop(true);
+          if (mounted) widget.onAuthenticated();
         }
       } catch (_) {
         // Silently retry
@@ -115,7 +132,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         appDataDir: await _appDataDir(),
       );
       setState(() {
-        _phoneStep = _phoneStepCode;
+        _phoneStep = _PhoneStep.code;
         _loading = false;
       });
     } catch (e) {
@@ -138,10 +155,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         code: _codeCtrl.text.trim(),
       );
       if (result.status == 'authorized') {
-        if (mounted) Navigator.of(context).pop(true);
+        if (mounted) widget.onAuthenticated();
       } else if (result.status == 'password_required') {
         setState(() {
-          _phoneStep = _phoneStepPassword;
+          _phoneStep = _PhoneStep.password;
           _loading = false;
         });
       }
@@ -165,7 +182,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         password: _passwordCtrl.text,
       );
       if (result.status == 'authorized' && mounted) {
-        Navigator.of(context).pop(true);
+        widget.onAuthenticated();
       }
     } catch (e) {
       setState(() {
@@ -175,79 +192,67 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  Future<String> _appDataDir() async {
-    final dir = await const MethodChannel('com.telegramphotos.app/media')
-        .invokeMethod<String>('getAppDataDir');
-    return dir ?? '/data/data/com.telegramphotos.app/files';
-  }
-
-  // ── Build ────────────────────────────────────────────────────────────────
+  // -- Build -------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Telegram Photos')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Icon(
-                Icons.cloud_upload_outlined,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
+              const SizedBox(height: 60),
+              // -- Header
+              Text(
+                'Telegram Photos',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Text(
                 'Back up your photos to Telegram',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
               Text(
                 'Connect your Telegram account to start backing up photos '
                 'to your private vault with zero-knowledge encryption.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
-              const SizedBox(height: 32),
-
-              // Content
-              if (!_credentialsEntered) ...[
-                _buildCredentialsForm(),
-              ] else if (_method == null) ...[
-                _buildMethodPicker(),
-              ] else if (_method == _LoginMethod.qr) ...[
-                _buildQRView(),
-              ] else ...[
-                _buildPhoneView(),
-              ],
-
-              // Error
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+              const Spacer(flex: 2),
+              // -- Steps
+              if (_method == null && !_credentialsEntered)
+                _buildCredentialStep()
+              else if (_method == null)
+                _buildMethodPicker()
+              else if (_method == _LoginMethod.qr)
+                _buildQRStep()
+              else
+                _buildPhoneStep(),
+              const Spacer(flex: 1),
+              // -- Error
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: Text(
                     _error!,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      color: Theme.of(context).colorScheme.error,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ],
-
-              // Loading
-              if (_loading) ...[
-                const SizedBox(height: 24),
-                const Center(child: CircularProgressIndicator()),
-              ],
+              // -- Loading
+              if (_loading)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
             ],
           ),
         ),
@@ -255,7 +260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildCredentialsForm() {
+  Widget _buildCredentialStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -265,13 +270,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Get these from my.telegram.org → API Development Tools',
-          style: Theme.of(context).textTheme.bodySmall,
+          'Get these from my.telegram.org -> API Development Tools',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _apiIdCtrl,
           keyboardType: TextInputType.number,
+          onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
             labelText: 'API ID',
             border: OutlineInputBorder(),
@@ -281,6 +289,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         const SizedBox(height: 12),
         TextField(
           controller: _apiHashCtrl,
+          onChanged: (_) => setState(() {}),
           decoration: const InputDecoration(
             labelText: 'API Hash',
             border: OutlineInputBorder(),
@@ -307,30 +316,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.qr_code),
-            title: const Text('QR Code Login'),
-            subtitle: const Text('Scan with Telegram on another device'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _startQRLogin,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.phone),
-            title: const Text('Phone Number Login'),
-            subtitle: const Text('Receive a verification code via SMS'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => setState(() => _method = _LoginMethod.phone),
+        OutlinedButton.icon(
+          onPressed: _startQRLogin,
+          icon: const Icon(Icons.qr_code_scanner),
+          label: const Text('QR Code Login'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.all(20),
+            alignment: Alignment.centerLeft,
           ),
         ),
         const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => setState(() => _method = _LoginMethod.phone),
+          icon: const Icon(Icons.phone),
+          label: const Text('Phone Number Login'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.all(20),
+            alignment: Alignment.centerLeft,
+          ),
+        ),
+        const SizedBox(height: 16),
         TextButton(
           onPressed: () => setState(() {
-            _credentialsEntered = false;
             _method = null;
+            _credentialsEntered = false;
           }),
           child: const Text('Change API credentials'),
         ),
@@ -338,18 +347,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildQRView() {
+  Widget _buildQRStep() {
     return Column(
       children: [
         Text(
-          'Scan this QR code with Telegram',
+          'Scan QR code with Telegram',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 16),
         if (_qrUrl != null)
           QrImageView(
             data: _qrUrl!,
-            version: QrVersions.auto,
             size: 220,
           )
         else
@@ -357,28 +365,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             height: 220,
             child: Center(child: CircularProgressIndicator()),
           ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Text(
-          'Open Telegram → Settings → Devices → Link Desktop Device',
+          'Open Telegram on another device, go to Settings > Devices > Link Device',
           style: Theme.of(context).textTheme.bodySmall,
           textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Waiting for scan...',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
         ),
       ],
     );
   }
 
-  Widget _buildPhoneView() {
+  Widget _buildPhoneStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_phoneStep == _phoneStepCredential) ...[
+        // Back button
+        Align(
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            onPressed: () => setState(() {
+              _method = null;
+              _credentialsEntered = false;
+            }),
+            icon: const Icon(Icons.arrow_back),
+          ),
+        ),
+        if (_phoneStep == _PhoneStep.credential) ...[
           Text(
             'Enter your phone number',
             style: Theme.of(context).textTheme.titleMedium,
@@ -398,7 +410,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onPressed: _requestPhoneCode,
             child: const Text('Send Code'),
           ),
-        ] else if (_phoneStep == _phoneStepCode) ...[
+        ] else if (_phoneStep == _PhoneStep.code) ...[
           Text(
             'Enter verification code',
             style: Theme.of(context).textTheme.titleMedium,
@@ -419,7 +431,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             onPressed: _submitCode,
             child: const Text('Verify'),
           ),
-        ] else if (_phoneStep == _phoneStepPassword) ...[
+        ] else if (_phoneStep == _PhoneStep.password) ...[
           Text(
             'Enter 2FA password',
             style: Theme.of(context).textTheme.titleMedium,
@@ -440,22 +452,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ],
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: () => setState(() {
-            _method = null;
-            _phoneStep = _phoneStepCredential;
-          }),
-          child: const Text('Back'),
-        ),
       ],
     );
   }
 }
-
-enum _LoginMethod { qr, phone }
-
-enum _PhoneStep { credential, code, password }
-
-const _phoneStepCredential = _PhoneStep.credential;
-const _phoneStepCode = _PhoneStep.code;
-const _phoneStepPassword = _PhoneStep.password;

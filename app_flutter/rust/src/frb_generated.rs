@@ -164,15 +164,38 @@ fn wire__crate__api__telegram__auth_check_password_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api_password = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::telegram::auth_check_password(api_handle, api_password)
-                                .await?;
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
+                        let output_ok = crate::api::telegram::auth_check_password(
+                            &*api_handle_guard,
+                            api_password,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -203,7 +226,9 @@ fn wire__crate__api__telegram__auth_qr_login_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api_api_id = <i32>::sse_decode(&mut deserializer);
             let api_api_hash = <String>::sse_decode(&mut deserializer);
             let api_app_data_dir = <String>::sse_decode(&mut deserializer);
@@ -211,8 +236,27 @@ fn wire__crate__api__telegram__auth_qr_login_impl(
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok = crate::api::telegram::auth_qr_login(
-                            api_handle,
+                            &*api_handle_guard,
                             api_api_id,
                             api_api_hash,
                             api_app_data_dir,
@@ -248,12 +292,34 @@ fn wire__crate__api__telegram__auth_qr_poll_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::telegram::auth_qr_poll(api_handle).await?;
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
+                        let output_ok =
+                            crate::api::telegram::auth_qr_poll(&*api_handle_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -284,7 +350,9 @@ fn wire__crate__api__telegram__auth_request_code_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api_phone = <String>::sse_decode(&mut deserializer);
             let api_api_id = <i32>::sse_decode(&mut deserializer);
             let api_api_hash = <String>::sse_decode(&mut deserializer);
@@ -293,8 +361,27 @@ fn wire__crate__api__telegram__auth_request_code_impl(
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok = crate::api::telegram::auth_request_code(
-                            api_handle,
+                            &*api_handle_guard,
                             api_phone,
                             api_api_id,
                             api_api_hash,
@@ -331,14 +418,36 @@ fn wire__crate__api__telegram__auth_sign_in_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api_code = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok =
-                            crate::api::telegram::auth_sign_in(api_handle, api_code).await?;
+                            crate::api::telegram::auth_sign_in(&*api_handle_guard, api_code)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -369,15 +478,39 @@ fn wire__crate__api__telegram__check_connection_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api__app_data_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
                     (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok = Result::<_, ()>::Ok(
-                            crate::api::telegram::check_connection(api_handle, api__app_data_dir)
-                                .await,
+                            crate::api::telegram::check_connection(
+                                &*api_handle_guard,
+                                api__app_data_dir,
+                            )
+                            .await,
                         )?;
                         Ok(output_ok)
                     })()
@@ -498,12 +631,33 @@ fn wire__crate__api__telegram__get_me_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
-                        let output_ok = crate::api::telegram::get_me(api_handle).await?;
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
+                        let output_ok = crate::api::telegram::get_me(&*api_handle_guard).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -928,14 +1082,36 @@ fn wire__crate__api__telegram__logout_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <TelegramHandle>::sse_decode(&mut deserializer);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
             let api_app_data_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, String>(
                     (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
                         let output_ok =
-                            crate::api::telegram::logout(api_handle, api_app_data_dir).await?;
+                            crate::api::telegram::logout(&*api_handle_guard, api_app_data_dir)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
