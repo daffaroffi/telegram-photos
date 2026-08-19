@@ -96,3 +96,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full E2E test on emulator: API credentials -> Phone OTP -> Login -> Photo grid.
 - 4-tab shell (Photos/Search/Library/Settings) renders correctly.
 - Photo grid displays 12+ items with "On this device" badge.
+
+## [0.3.3] - 2026-08-19
+
+### Verified
+- E2E test complete: Login (API + Phone OTP) -> Photo grid -> 4 tabs all functional.
+- Photos tab: grid with thumbnails, Refresh, Scan gallery FAB, photo detail view.
+- Search tab: filter chips (All/Videos/Screenshots/Last 30 days), search bar.
+- Library tab: Collections (0), Favorites/Memories/Trash/Device folders sections.
+- Settings tab: Auto backup, WiFi only, While charging, Original quality toggles.
+- Encryption: Set up encryption button, Client-side encryption toggle (planned).
+- Vault: TelegramPhotos_Vault channel shown (0 files, 0 KB).
+- Display: Grid columns setting.
+- Final APK sizes: armeabi-v7a 17.6MB, arm64-v8a 21.3MB, x86_64 22.9MB.
