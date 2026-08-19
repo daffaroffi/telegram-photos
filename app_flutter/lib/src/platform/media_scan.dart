@@ -25,4 +25,15 @@ class MediaScan {
     );
     return result ?? '{}';
   }
+
+  /// Reads file from content URI and copies to a temp file.
+  /// Returns the temp file path for Rust to read.
+  static Future<String> readFileToTemp(String uri) async {
+    final result = await _channel.invokeMethod<String>(
+      'readFileBytes',
+      {'uri': uri},
+    );
+    if (result == null) throw Exception('Failed to read file');
+    return result;
+  }
 }

@@ -110,3 +110,39 @@ pub async fn logout(handle: &TelegramHandle, app_data_dir: String) -> Result<boo
     let dir = std::path::PathBuf::from(&app_data_dir);
     telegram::logout(&handle.inner, &dir).await
 }
+
+/// Upload a single photo file to the Telegram vault channel.
+/// Returns the Telegram message ID on success.
+pub async fn upload_photo(
+    handle: &TelegramHandle,
+    file_path: String,
+    file_name: String,
+    mime_type: String,
+    is_video: bool,
+) -> Result<i64, String> {
+    let client = telegram::current_client(&handle.inner).await?;
+    let db = crate::api::db::db()?;
+    // Ensure vault channel exists (creates if needed)
+    let _ = telegram::vault::get_or_create_vault(&client, db, &handle.inner).await?;
+    let vault_peer = telegram::vault::peer_from_vault(&client, &handle.inner).await?;
+    let file_path = std::path::PathBuf::from(&file_path);
+    let file_bytes = tokio::fs::read(&file_path)
+        .await
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+    let size = file_bytes.len();
+    let reader = std::io::Cursor::new(file_bytes);
+    let boxed_reader: Box<dyn tokio::io::AsyncRead + Unpin + Send> = Box::new(reader);
+    let msg_id = telegram::upload::upload_stream_to_peer(
+        &client,
+        &vault_peer,
+        boxed_reader,
+        size,
+        file_name,
+        &mime_type,
+        is_video,
+        None,
+        |_, _| {},
+    )
+    .await?;
+    Ok(msg_id as i64)
+}

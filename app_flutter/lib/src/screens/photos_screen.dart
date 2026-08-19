@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../src/platform/media_scan.dart';
+import '../../main.dart' show telegramHandle;
+import '../platform/media_scan.dart';
 import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
+import '../../src/rust/api/telegram.dart' as tg;
 import '../widgets/backup_banner.dart';
 import '../widgets/status_badge.dart';
 import 'upload_screen.dart';
@@ -302,26 +304,100 @@ class _DurationChip extends StatelessWidget {
 
 /// Minimal unified preview (PRD Part 2 §4.3) — fullscreen, swipe between
 /// photos is a P1 follow-up once the thumbnail pipeline lands.
-class _PreviewDialog extends StatelessWidget {
+class _PreviewDialog extends StatefulWidget {
   const _PreviewDialog({required this.item});
 
   final MediaItem item;
 
   @override
+  State<_PreviewDialog> createState() => _PreviewDialogState();
+}
+
+class _PreviewDialogState extends State<_PreviewDialog> {
+  bool _uploading = false;
+  String? _error;
+
+  Future<void> _uploadToVault() async {
+    if (_uploading) return;
+    setState(() {
+      _uploading = true;
+      _error = null;
+    });
+    try {
+      final contentUri = widget.item.id;
+      // Read file from content URI via platform channel
+      final tempPath = await MediaScan.readFileToTemp(contentUri);
+      final ext = tempPath.split('.').last.toLowerCase();
+      final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
+      final mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+      final msgId = await tg.uploadPhoto(
+        handle: telegramHandle,
+        filePath: tempPath,
+        fileName: widget.item.fileName,
+        mimeType: mimeType,
+        isVideo: isVideo,
+      );
+      // Update sync status in DB
+      core.setMediaStatus(id: widget.item.id, status: 1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uploaded (msg $msgId)')),
+        );
+        setState(() => _uploading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _uploading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isNotBackedUp = widget.item.syncStatus == 'NOT_BACKED_UP';
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(
-          item.fileName,
+          widget.item.fileName,
           style: const TextStyle(fontSize: 14),
         ),
+        actions: [
+          if (isNotBackedUp)
+            IconButton(
+              onPressed: _uploading ? null : _uploadToVault,
+              icon: _uploading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.cloud_upload),
+              tooltip: 'Upload to vault',
+            ),
+        ],
       ),
       body: Center(
-        child: _Thumbnail(item: item),
+        child: _Thumbnail(item: widget.item),
       ),
+      bottomNavigationBar: _error != null
+          ? Container(
+              color: Theme.of(context).colorScheme.error,
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                _error!,
+                style: const TextStyle(color: Colors.white),
+              ),
+            )
+          : null,
     );
   }
 }

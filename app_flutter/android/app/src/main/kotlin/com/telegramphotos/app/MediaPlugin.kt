@@ -47,7 +47,44 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 val ids = call.argument<List<String>>("ids") ?: emptyList()
                 result.success(generateThumbnails(ids))
             }
+            "readFileBytes" -> {
+                val uri = call.argument<String>("uri") ?: return result.error("NO_URI", "No URI", null)
+                val outPath = readFileToTemp(uri)
+                if (outPath != null) result.success(outPath)
+                else result.error("READ_FAILED", "Failed to read file", null)
+            }
             else -> result.notImplemented()
+        }
+    }
+
+    /**
+     * Reads file from content URI and copies to a temp file. Returns the temp file path.
+     */
+    private fun readFileToTemp(uriStr: String): String? {
+        val ctx = appContext ?: return null
+        return try {
+            // ID format from scan: "content://media/external/images/media_1000000034"
+            // Convert to valid URI: replace trailing _<digits> with /<digits>
+            val fixedUri = if (uriStr.contains("_")) {
+                val lastUnderscore = uriStr.lastIndexOf('_')
+                val afterUnderscore = uriStr.substring(lastUnderscore + 1)
+                if (afterUnderscore.all { it.isDigit() }) {
+                    uriStr.substring(0, lastUnderscore) + "/" + afterUnderscore
+                } else uriStr
+            } else uriStr
+            Log.d("MediaPlugin", "readFileToTemp: original=$uriStr fixed=$fixedUri")
+            val uri = Uri.parse(fixedUri)
+            val resolver = ctx.contentResolver
+            val tempFile = File(ctx.cacheDir, "upload_${System.currentTimeMillis()}_tmp")
+            resolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            tempFile.absolutePath
+        } catch (e: Exception) {
+            Log.e("MediaPlugin", "readFileToTemp failed for $uriStr", e)
+            null
         }
     }
 

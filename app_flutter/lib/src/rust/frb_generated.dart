@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -568471305;
+  int get rustContentHash => 615593259;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -180,6 +180,16 @@ abstract class RustLibApi extends BaseApi {
   PlatformInt64 crateApiDbSaveThumbnailPaths({required String json});
 
   List<String> crateApiDbSearchByHashtag({required String tag});
+
+  void crateApiDbSetMediaStatus({required String id, required int status});
+
+  Future<PlatformInt64> crateApiTelegramUploadPhoto({
+    required TelegramHandle handle,
+    required String filePath,
+    required String fileName,
+    required String mimeType,
+    required bool isVideo,
+  });
 
   UploadsSummary crateApiDbUploadsSummary();
 
@@ -1127,12 +1137,82 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "search_by_hashtag", argNames: ["tag"]);
 
   @override
+  void crateApiDbSetMediaStatus({required String id, required int status}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(id, serializer);
+          sse_encode_i_32(status, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiDbSetMediaStatusConstMeta,
+        argValues: [id, status],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiDbSetMediaStatusConstMeta => const TaskConstMeta(
+    debugName: "set_media_status",
+    argNames: ["id", "status"],
+  );
+
+  @override
+  Future<PlatformInt64> crateApiTelegramUploadPhoto({
+    required TelegramHandle handle,
+    required String filePath,
+    required String fileName,
+    required String mimeType,
+    required bool isVideo,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
+            handle,
+            serializer,
+          );
+          sse_encode_String(filePath, serializer);
+          sse_encode_String(fileName, serializer);
+          sse_encode_String(mimeType, serializer);
+          sse_encode_bool(isVideo, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_i_64,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiTelegramUploadPhotoConstMeta,
+        argValues: [handle, filePath, fileName, mimeType, isVideo],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTelegramUploadPhotoConstMeta =>
+      const TaskConstMeta(
+        debugName: "upload_photo",
+        argNames: ["handle", "filePath", "fileName", "mimeType", "isVideo"],
+      );
+
+  @override
   UploadsSummary crateApiDbUploadsSummary() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 34)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 36)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_uploads_summary,

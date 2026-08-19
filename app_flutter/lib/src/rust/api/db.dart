@@ -100,3 +100,8 @@ List<MediaItem> listCollectionItems({required String collectionId}) => RustLib
     .crateApiDbListCollectionItems(collectionId: collectionId);
 
 List<Album> listAlbums() => RustLib.instance.api.crateApiDbListAlbums();
+
+/// Update sync status for a media item.
+/// Status values: 0=NOT_BACKED_UP, 1=BACKED_UP, 2=PARTIAL, 3=CONFLICT, 4=TRASHED
+void setMediaStatus({required String id, required int status}) =>
+    RustLib.instance.api.crateApiDbSetMediaStatus(id: id, status: status);

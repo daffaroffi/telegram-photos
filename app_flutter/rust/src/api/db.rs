@@ -185,3 +185,18 @@ pub fn list_collection_items(collection_id: String) -> Result<Vec<MediaItem>, St
 pub fn list_albums() -> Result<Vec<Album>, String> {
     db()?.list_albums()
 }
+
+/// Update sync status for a media item.
+/// Status values: 0=NOT_BACKED_UP, 1=BACKED_UP, 2=PARTIAL, 3=CONFLICT, 4=TRASHED
+#[frb(sync)]
+pub fn set_media_status(id: String, status: i32) -> Result<(), String> {
+    let status_str = match status {
+        0 => "NOT_BACKED_UP",
+        1 => "BACKED_UP",
+        2 => "PARTIAL",
+        3 => "CONFLICT",
+        4 => "TRASHED",
+        _ => return Err(format!("Invalid status: {}", status)),
+    };
+    db()?.set_media_status(&id, status_str)
+}
