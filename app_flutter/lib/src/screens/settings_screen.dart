@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../platform/backup_service.dart';
 import '../rust/api/crypto.dart' as crypto;
@@ -9,13 +10,14 @@ import '../rust/api/mirror.dart';
 import '../rust/api/telegram.dart' as tg;
 import '../../main.dart' show telegramHandle;
 
-/// Settings screen (PRD Part 2 §3.4).
+/// Settings screen (PRD Part 2 S3.4).
 ///
 /// Design principles:
 /// - Subtractive: grouped sections, no decoration without purpose
 /// - Progressive disclosure: encryption setup behind a dialog
 /// - Engineering constraints: confirmation dialogs for destructive actions
 /// - Platform conventions: Material 3 switches, proper spacing
+/// - Lucide icons throughout for consistency
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -38,6 +40,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     core.saveSettings(settings: _settings);
   }
 
+  AppSettings _copyWith({
+    bool? autoBackupEnabled,
+    bool? backupOverWifiOnly,
+    bool? backupWhileChargingOnly,
+    bool? uploadOriginalQuality,
+    bool? clientEncryptionEnabled,
+    bool? vaultPassphraseSet,
+    int? gridColumnCount,
+  }) {
+    return AppSettings(
+      autoBackupEnabled: autoBackupEnabled ?? _settings.autoBackupEnabled,
+      backupOverWifiOnly: backupOverWifiOnly ?? _settings.backupOverWifiOnly,
+      backupWhileChargingOnly:
+          backupWhileChargingOnly ?? _settings.backupWhileChargingOnly,
+      uploadOriginalQuality:
+          uploadOriginalQuality ?? _settings.uploadOriginalQuality,
+      folderBackupSettings: _settings.folderBackupSettings,
+      clientEncryptionEnabled:
+          clientEncryptionEnabled ?? _settings.clientEncryptionEnabled,
+      vaultPassphraseSet: vaultPassphraseSet ?? _settings.vaultPassphraseSet,
+      gridColumnCount: gridColumnCount ?? _settings.gridColumnCount,
+      theme: _settings.theme,
+      telegramApiId: _settings.telegramApiId,
+      telegramApiHash: _settings.telegramApiHash,
+      googleClientId: _settings.googleClientId,
+      googleClientSecret: _settings.googleClientSecret,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,41 +76,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           // ── Backup section ──────────────────────────────────────
-          _SectionHeader(title: 'Backup'),
+          _SectionHeader(icon: LucideIcons.cloud, title: 'Backup'),
           SwitchListTile(
             title: const Text('Auto backup'),
             subtitle: const Text('Automatically upload new photos'),
             value: _settings.autoBackupEnabled,
             onChanged: (v) async {
               setState(() {
-              _settings = AppSettings(
-                autoBackupEnabled: v,
-                backupOverWifiOnly: _settings.backupOverWifiOnly,
-                backupWhileChargingOnly: _settings.backupWhileChargingOnly,
-                uploadOriginalQuality: _settings.uploadOriginalQuality,
-                folderBackupSettings: _settings.folderBackupSettings,
-                clientEncryptionEnabled: _settings.clientEncryptionEnabled,
-                vaultPassphraseSet: _settings.vaultPassphraseSet,
-                gridColumnCount: _settings.gridColumnCount,
-                theme: _settings.theme,
-                telegramApiId: _settings.telegramApiId,
-                telegramApiHash: _settings.telegramApiHash,
-                googleClientId: _settings.googleClientId,
-                googleClientSecret: _settings.googleClientSecret,
-              );
-              _saveSettings();
+                _settings = _copyWith(autoBackupEnabled: v);
+                _saveSettings();
               });
-              // Wire to WorkManager.
               if (v) {
-                // Scan pending items and start periodic backup.
                 final pending = core.listPendingBackup(limit: 200);
                 if (pending.isNotEmpty) {
-                  final items = pending.map((m) => {
-                    'contentUri': m.id,
-                    'fileName': m.fileName,
-                    'mimeType': m.mimeType,
-                    'isVideo': m.mediaType == 'video',
-                  }).toList();
+                  final items = pending
+                      .map((m) => {
+                            'contentUri': m.id,
+                            'fileName': m.fileName,
+                            'mimeType': m.mimeType,
+                            'isVideo': m.mediaType == 'video',
+                          })
+                      .toList();
                   await BackupService.startBackup(items);
                 }
               } else {
@@ -93,23 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _settings.backupOverWifiOnly,
             onChanged: _settings.autoBackupEnabled
                 ? (v) => setState(() {
-                      _settings = AppSettings(
-                        autoBackupEnabled: _settings.autoBackupEnabled,
-                        backupOverWifiOnly: v,
-                        backupWhileChargingOnly:
-                            _settings.backupWhileChargingOnly,
-                        uploadOriginalQuality: _settings.uploadOriginalQuality,
-                        folderBackupSettings: _settings.folderBackupSettings,
-                        clientEncryptionEnabled:
-                            _settings.clientEncryptionEnabled,
-                        vaultPassphraseSet: _settings.vaultPassphraseSet,
-                        gridColumnCount: _settings.gridColumnCount,
-                        theme: _settings.theme,
-                        telegramApiId: _settings.telegramApiId,
-                        telegramApiHash: _settings.telegramApiHash,
-                        googleClientId: _settings.googleClientId,
-                        googleClientSecret: _settings.googleClientSecret,
-                      );
+                      _settings = _copyWith(backupOverWifiOnly: v);
                       _saveSettings();
                     })
                 : null,
@@ -120,46 +121,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _settings.backupWhileChargingOnly,
             onChanged: _settings.autoBackupEnabled
                 ? (v) => setState(() {
-                      _settings = AppSettings(
-                        autoBackupEnabled: _settings.autoBackupEnabled,
-                        backupOverWifiOnly: _settings.backupOverWifiOnly,
-                        backupWhileChargingOnly: v,
-                        uploadOriginalQuality: _settings.uploadOriginalQuality,
-                        folderBackupSettings: _settings.folderBackupSettings,
-                        clientEncryptionEnabled:
-                            _settings.clientEncryptionEnabled,
-                        vaultPassphraseSet: _settings.vaultPassphraseSet,
-                        gridColumnCount: _settings.gridColumnCount,
-                        theme: _settings.theme,
-                        telegramApiId: _settings.telegramApiId,
-                        telegramApiHash: _settings.telegramApiHash,
-                        googleClientId: _settings.googleClientId,
-                        googleClientSecret: _settings.googleClientSecret,
-                      );
+                      _settings = _copyWith(backupWhileChargingOnly: v);
                       _saveSettings();
                     })
                 : null,
           ),
           SwitchListTile(
             title: const Text('Original quality'),
-            subtitle: const Text('Upload full resolution (uses more storage)'),
+            subtitle: const Text('Upload full resolution'),
             value: _settings.uploadOriginalQuality,
             onChanged: (v) => setState(() {
-              _settings = AppSettings(
-                autoBackupEnabled: _settings.autoBackupEnabled,
-                backupOverWifiOnly: _settings.backupOverWifiOnly,
-                backupWhileChargingOnly: _settings.backupWhileChargingOnly,
-                uploadOriginalQuality: v,
-                folderBackupSettings: _settings.folderBackupSettings,
-                clientEncryptionEnabled: _settings.clientEncryptionEnabled,
-                vaultPassphraseSet: _settings.vaultPassphraseSet,
-                gridColumnCount: _settings.gridColumnCount,
-                theme: _settings.theme,
-                telegramApiId: _settings.telegramApiId,
-                telegramApiHash: _settings.telegramApiHash,
-                googleClientId: _settings.googleClientId,
-                googleClientSecret: _settings.googleClientSecret,
-              );
+              _settings = _copyWith(uploadOriginalQuality: v);
               _saveSettings();
             }),
           ),
@@ -167,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(height: 1),
 
           // ── Encryption section ──────────────────────────────────
-          _SectionHeader(title: 'Encryption'),
+          _SectionHeader(icon: LucideIcons.shieldCheck, title: 'Encryption'),
           SwitchListTile(
             title: const Text('Client-side encryption'),
             subtitle: Text(
@@ -178,58 +150,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _settings.clientEncryptionEnabled,
             onChanged: _settings.vaultPassphraseSet
                 ? (v) => setState(() {
-                      _settings = AppSettings(
-                        autoBackupEnabled: _settings.autoBackupEnabled,
-                        backupOverWifiOnly: _settings.backupOverWifiOnly,
-                        backupWhileChargingOnly:
-                            _settings.backupWhileChargingOnly,
-                        uploadOriginalQuality: _settings.uploadOriginalQuality,
-                        folderBackupSettings: _settings.folderBackupSettings,
-                        clientEncryptionEnabled: v,
-                        vaultPassphraseSet: _settings.vaultPassphraseSet,
-                        gridColumnCount: _settings.gridColumnCount,
-                        theme: _settings.theme,
-                        telegramApiId: _settings.telegramApiId,
-                        telegramApiHash: _settings.telegramApiHash,
-                        googleClientId: _settings.googleClientId,
-                        googleClientSecret: _settings.googleClientSecret,
-                      );
+                      _settings = _copyWith(clientEncryptionEnabled: v);
                       _saveSettings();
                     })
                 : null,
           ),
           if (!_settings.vaultPassphraseSet)
             ListTile(
-              leading: const Icon(Icons.lock_outline),
+              leading: const Icon(LucideIcons.lock),
               title: const Text('Set up encryption'),
               subtitle: const Text('Create a passphrase to protect your photos'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(LucideIcons.chevronRight),
               onTap: _showEncryptionSetup,
             ),
 
           const Divider(height: 1),
 
           // ── Vault section ───────────────────────────────────────
-          _SectionHeader(title: 'Vault'),
-          if (_vaultInfo != null) ...[
+          _SectionHeader(icon: LucideIcons.database, title: 'Vault'),
+          if (_vaultInfo != null)
             ListTile(
-              leading: const Icon(Icons.storage),
+              leading: const Icon(LucideIcons.database),
               title: const Text('Vault channel'),
               subtitle: Text(
                 '${_vaultInfo!.channelTitle}\n'
-                '${_vaultInfo!.totalBackedUpFiles} files · '
+                '${_vaultInfo!.totalBackedUpFiles} files . '
                 '${_formatBytes(_vaultInfo!.totalStorageUsedBytes)}',
               ),
               isThreeLine: true,
             ),
-          ],
 
           const Divider(height: 1),
 
           // ── Display section ─────────────────────────────────────
-          _SectionHeader(title: 'Display'),
+          _SectionHeader(icon: LucideIcons.layoutGrid, title: 'Display'),
           ListTile(
-            leading: const Icon(Icons.grid_view),
+            leading: const Icon(LucideIcons.grid3x3),
             title: const Text('Grid columns'),
             trailing: DropdownButton<int>(
               value: _settings.gridColumnCount.toInt(),
@@ -242,22 +198,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onChanged: (v) {
                 if (v == null) return;
                 setState(() {
-                  _settings = AppSettings(
-                    autoBackupEnabled: _settings.autoBackupEnabled,
-                    backupOverWifiOnly: _settings.backupOverWifiOnly,
-                    backupWhileChargingOnly:
-                        _settings.backupWhileChargingOnly,
-                    uploadOriginalQuality: _settings.uploadOriginalQuality,
-                    folderBackupSettings: _settings.folderBackupSettings,
-                    clientEncryptionEnabled: _settings.clientEncryptionEnabled,
-                    vaultPassphraseSet: _settings.vaultPassphraseSet,
-                    gridColumnCount: v,
-                    theme: _settings.theme,
-                    telegramApiId: _settings.telegramApiId,
-                    telegramApiHash: _settings.telegramApiHash,
-                    googleClientId: _settings.googleClientId,
-                    googleClientSecret: _settings.googleClientSecret,
-                  );
+                  _settings = _copyWith(gridColumnCount: v);
                   _saveSettings();
                 });
               },
@@ -266,23 +207,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const Divider(height: 1),
 
-          // ── Performance section ──────────────────────────────
-          _SectionHeader(title: 'Performance'),
+          // ── Performance section ─────────────────────────────────
+          _SectionHeader(icon: LucideIcons.zap, title: 'Performance'),
           ListTile(
-            leading: const Icon(Icons.speed),
+            leading: const Icon(LucideIcons.gauge),
             title: const Text('Run benchmark'),
             subtitle: const Text('Measure cold start, scan, and memory usage'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(LucideIcons.chevronRight),
             onTap: _runBenchmark,
           ),
 
           const Divider(height: 1),
 
           // ── Account section ─────────────────────────────────────
-          _SectionHeader(title: 'Account'),
+          _SectionHeader(icon: LucideIcons.user, title: 'Account'),
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Logout'),
+            leading: Icon(
+              LucideIcons.logOut,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Logout',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
             subtitle: const Text('Remove Telegram session from this device'),
             onTap: _confirmLogout,
           ),
@@ -292,6 +239,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ─── Encryption Setup ────────────────────────────────────────────────────
 
   Future<void> _showEncryptionSetup() async {
     final ctrl = TextEditingController();
@@ -314,6 +263,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: const InputDecoration(
                 labelText: 'Passphrase',
                 border: OutlineInputBorder(),
+                prefixIcon: Icon(LucideIcons.lock),
               ),
             ),
           ],
@@ -335,20 +285,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       try {
         await crypto.vaultSetup(passphrase: ctrl.text);
         setState(() {
-          _settings = AppSettings(
-            autoBackupEnabled: _settings.autoBackupEnabled,
-            backupOverWifiOnly: _settings.backupOverWifiOnly,
-            backupWhileChargingOnly: _settings.backupWhileChargingOnly,
-            uploadOriginalQuality: _settings.uploadOriginalQuality,
-            folderBackupSettings: _settings.folderBackupSettings,
+          _settings = _copyWith(
             clientEncryptionEnabled: true,
             vaultPassphraseSet: true,
-            gridColumnCount: _settings.gridColumnCount,
-            theme: _settings.theme,
-            telegramApiId: _settings.telegramApiId,
-            telegramApiHash: _settings.telegramApiHash,
-            googleClientId: _settings.googleClientId,
-            googleClientSecret: _settings.googleClientSecret,
           );
           _saveSettings();
         });
@@ -367,6 +306,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     ctrl.dispose();
   }
+
+  // ─── Logout ──────────────────────────────────────────────────────────────
 
   Future<void> _confirmLogout() async {
     final result = await showDialog<bool>(
@@ -411,30 +352,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
+  // ─── Benchmark ───────────────────────────────────────────────────────────
 
   Future<void> _runBenchmark() async {
     final sw = Stopwatch()..start();
 
-    // Measure DB query time.
     sw.reset();
     final count = core.countMedia();
     final dbTime = sw.elapsedMilliseconds;
 
-    // Measure timeline load time.
     sw.reset();
     final items = core.listTimeline(beforeTimestamp: null, limit: 1000);
     final loadTime = sw.elapsedMilliseconds;
 
-    // Memory info.
     final totalMem = ProcessInfo.currentRss;
-
     sw.stop();
 
     if (!mounted) return;
@@ -465,10 +396,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
 }
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Benchmark Row ────────────────────────────────────────────────────────────
 
 class _BenchmarkRow extends StatelessWidget {
   const _BenchmarkRow({required this.label, required this.value});
+
   final String label;
   final String value;
 
@@ -480,29 +450,13 @@ class _BenchmarkRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: Theme.of(context).textTheme.bodyMedium),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              )),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
         ],
-      ),
-    );
-  }
-}
-
-/// Section header — minimal, no decoration.
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-            ),
       ),
     );
   }
