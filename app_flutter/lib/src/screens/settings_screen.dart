@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../rust/api/crypto.dart' as crypto;
 import '../rust/api/db.dart' as core;
 import '../rust/api/mirror.dart';
 import '../rust/api/telegram.dart' as tg;
@@ -298,29 +299,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (result == true && ctrl.text.isNotEmpty) {
-      // TODO: wire vault_setup via FRB when crypto functions are exposed
-      setState(() {
-        _settings = AppSettings(
-          autoBackupEnabled: _settings.autoBackupEnabled,
-          backupOverWifiOnly: _settings.backupOverWifiOnly,
-          backupWhileChargingOnly: _settings.backupWhileChargingOnly,
-          uploadOriginalQuality: _settings.uploadOriginalQuality,
-          folderBackupSettings: _settings.folderBackupSettings,
-          clientEncryptionEnabled: true,
-          vaultPassphraseSet: true,
-          gridColumnCount: _settings.gridColumnCount,
-          theme: _settings.theme,
-          telegramApiId: _settings.telegramApiId,
-          telegramApiHash: _settings.telegramApiHash,
-          googleClientId: _settings.googleClientId,
-          googleClientSecret: _settings.googleClientSecret,
-        );
-        _saveSettings();
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Encryption enabled')),
-        );
+      try {
+        await crypto.vaultSetup(passphrase: ctrl.text);
+        setState(() {
+          _settings = AppSettings(
+            autoBackupEnabled: _settings.autoBackupEnabled,
+            backupOverWifiOnly: _settings.backupOverWifiOnly,
+            backupWhileChargingOnly: _settings.backupWhileChargingOnly,
+            uploadOriginalQuality: _settings.uploadOriginalQuality,
+            folderBackupSettings: _settings.folderBackupSettings,
+            clientEncryptionEnabled: true,
+            vaultPassphraseSet: true,
+            gridColumnCount: _settings.gridColumnCount,
+            theme: _settings.theme,
+            telegramApiId: _settings.telegramApiId,
+            telegramApiHash: _settings.telegramApiHash,
+            googleClientId: _settings.googleClientId,
+            googleClientSecret: _settings.googleClientSecret,
+          );
+          _saveSettings();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Encryption enabled')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
       }
     }
     ctrl.dispose();

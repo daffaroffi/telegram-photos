@@ -6,6 +6,7 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
+import 'api/crypto.dart';
 import 'api/db.dart';
 import 'api/mirror.dart';
 import 'api/simple.dart';
@@ -172,6 +173,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   VaultInfo dco_decode_vault_info(dynamic raw);
 
   @protected
+  VaultStatus dco_decode_vault_status(dynamic raw);
+
+  @protected
   TelegramHandle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
     SseDeserializer deserializer,
@@ -324,6 +328,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   VaultInfo sse_decode_vault_info(SseDeserializer deserializer);
+
+  @protected
+  VaultStatus sse_decode_vault_status(SseDeserializer deserializer);
 
   @protected
   void
@@ -516,6 +523,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_vault_info(VaultInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_vault_status(VaultStatus self, SseSerializer serializer);
 }
 
 // Section: wire_class

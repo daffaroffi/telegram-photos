@@ -109,6 +109,31 @@ pub async fn ensure_client_initialized(
     Ok(client)
 }
 
+/// Reset all client state and delete session files.
+/// Used by AUTH_RESTART and AUTH_CLEAR handlers.
+async fn reset_client_state(state: &TelegramState, app_data_dir: &std::path::Path) {
+    {
+        let mut guard = state.client.lock().await;
+        *guard = None;
+    }
+    {
+        let mut guard = state.session.lock().await;
+        *guard = None;
+    }
+    {
+        let mut guard = state.runner_shutdown.lock().unwrap();
+        if let Some(tx) = guard.take() {
+            let _ = tx.send(());
+        }
+    }
+    // Delete all session files (main + WAL + SHM).
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(app_data_dir.join(format!("telegram.session{}", suffix)));
+    }
+    // Small delay to ensure I/O completes and runner exits.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+}
+
 pub async fn current_client(state: &TelegramState) -> Result<Client, String> {
     state
         .client
@@ -164,6 +189,26 @@ fn map_auth_error(e: impl std::fmt::Display) -> String {
     raw
 }
 
+/// Check if an error is a transient auth error that can be retried.
+fn is_retryable_auth_error(e: &str) -> bool {
+    e.contains("AUTH_RESTART") || e.contains("AUTH_KEY_UNREGISTERED")
+}
+
+/// Core logic: try to request login code once with the given client.
+async fn try_request_login_code(
+    client: &Client,
+    phone: &str,
+    api_hash: &str,
+) -> Result<grammers_client::types::LoginToken, String> {
+    timeout(
+        Duration::from_secs(30),
+        client.request_login_code(phone, api_hash),
+    )
+    .await
+    .map_err(|_| "Telegram did not respond. Check your connection.".to_string())?
+    .map_err(|e| map_auth_error(e))
+}
+
 pub async fn auth_request_code(
     state: &TelegramState,
     phone: &str,
@@ -181,60 +226,46 @@ pub async fn auth_request_code(
 
     // Save api_id and api_hash to file for session restore on cold start.
     let creds_path = app_data_dir.join(".telegram_creds");
-    let _ = std::fs::write(
-        &creds_path,
-        format!("{}\n{}", api_id, api_hash),
-    );
+    let _ = std::fs::write(&creds_path, format!("{}\n{}", api_id, api_hash));
 
-    let client = ensure_client_initialized(state, api_id, app_data_dir).await?;
-    let token = match timeout(
-        Duration::from_secs(30),
-        client.request_login_code(&phone, api_hash),
-    )
-    .await
-    {
-        Err(_) => return Err("Telegram did not respond. Check your connection.".into()),
-        Ok(Err(e)) if e.to_string().contains("AUTH_RESTART") => {
-            // Stale session: shut down client, delete session file, re-init.
-            log::warn!("AUTH_RESTART detected — deleting stale session and retrying");
-            {
-                let mut guard = state.client.lock().await;
-                *guard = None;
+    // Retry loop: up to 3 attempts for transient errors (AUTH_RESTART, AUTH_KEY_UNREGISTERED).
+    const MAX_ATTEMPTS: u32 = 3;
+    let mut last_error = String::new();
+
+    for attempt in 1..=MAX_ATTEMPTS {
+        let client = ensure_client_initialized(state, api_id, app_data_dir).await?;
+
+        match try_request_login_code(&client, &phone, api_hash).await {
+            Ok(token) => {
+                *state.login_token.lock().await = Some(token);
+                return Ok(AuthCodeResult {
+                    status: "code_required".into(),
+                    code_length: Some(5),
+                    resend_after_seconds: Some(60),
+                    delivery: Some("telegram_app".into()),
+                });
             }
-            {
-                let mut guard = state.session.lock().await;
-                *guard = None;
+            Err(e) if is_retryable_auth_error(&e) && attempt < MAX_ATTEMPTS => {
+                log::warn!(
+                    "AUTH attempt {}/{} failed ({}): cleaning up and retrying...",
+                    attempt,
+                    MAX_ATTEMPTS,
+                    &e
+                );
+                reset_client_state(state, app_data_dir).await;
+                // Exponential backoff: 500ms, 1000ms.
+                let delay_ms = 500 * attempt;
+                tokio::time::sleep(Duration::from_millis(delay_ms as u64)).await;
+                last_error = e;
             }
-            {
-                let mut guard = state.runner_shutdown.lock().unwrap();
-                if let Some(tx) = guard.take() {
-                    let _ = tx.send(());
-                }
+            Err(e) => {
+                last_error = e;
+                break;
             }
-            for suffix in ["", "-wal", "-shm"] {
-                let _ = std::fs::remove_file(app_data_dir.join(format!("telegram.session{}", suffix)));
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            let client2 = ensure_client_initialized(state, api_id, app_data_dir).await?;
-            timeout(
-                Duration::from_secs(30),
-                client2.request_login_code(&phone, api_hash),
-            )
-            .await
-            .map_err(|_| "Telegram did not respond. Check your connection.".to_string())?
-            .map_err(|e| map_auth_error(e))?
         }
-        Ok(Err(e)) => return Err(map_auth_error(e)),
-        Ok(Ok(token)) => token,
-    };
+    }
 
-    *state.login_token.lock().await = Some(token);
-    Ok(AuthCodeResult {
-        status: "code_required".into(),
-        code_length: Some(5),
-        resend_after_seconds: Some(60),
-        delivery: Some("telegram_app".into()),
-    })
+    Err(last_error)
 }
 
 pub async fn auth_sign_in(
@@ -274,7 +305,7 @@ pub async fn auth_sign_in(
             Err("Phone number must be registered on official Telegram".into())
         }
         Ok(Err(grammers_client::SignInError::InvalidCode)) => Err("Invalid code".into()),
-        Ok(Err(grammers_client::SignInError::InvalidPassword)) => Err("Kata sandi 2FA salah.".into()),
+        Ok(Err(grammers_client::SignInError::InvalidPassword)) => Err("Invalid 2FA password.".into()),
         Ok(Err(grammers_client::SignInError::Other(e))) => Err(map_auth_error(e)),
     }
 }
@@ -298,7 +329,7 @@ pub async fn auth_check_password(
             resend_after_seconds: None,
             delivery: None,
         }),
-        Ok(Err(e)) => Err(format!("2FA gagal: {}", map_auth_error(e))),
+        Ok(Err(e)) => Err(format!("2FA failed: {}", map_auth_error(e))),
     }
 }
 
@@ -411,7 +442,7 @@ pub async fn check_connection(
         let lines: Vec<&str> = contents.lines().collect();
         if lines.len() >= 2 {
             if let Ok(api_id) = lines[0].trim().parse::<i32>() {
-                let api_hash = lines[1].trim();
+                let _api_hash = lines[1].trim();
                 match ensure_client_initialized(state, api_id, app_data_dir).await {
                     Ok(client) => Ok(client.is_authorized().await.unwrap_or(false)),
                     Err(_) => Ok(false),
