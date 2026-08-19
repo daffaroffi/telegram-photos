@@ -200,3 +200,10 @@ pub fn set_media_status(id: String, status: i32) -> Result<(), String> {
     };
     db()?.set_media_status(&id, status_str)
 }
+
+/// List media items that haven't been backed up yet, for background backup.
+#[frb(sync)]
+pub fn list_pending_backup(limit: i64) -> Result<Vec<MediaItem>, String> {
+    let all = db()?.list_media_by_statuses(&["NOT_BACKED_UP"])?;
+    Ok(all.into_iter().take(limit as usize).collect())
+}

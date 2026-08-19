@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import '../platform/backup_service.dart';
 import '../rust/api/crypto.dart' as crypto;
 import '../rust/api/db.dart' as core;
 import '../rust/api/mirror.dart';
@@ -47,7 +50,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Auto backup'),
             subtitle: const Text('Automatically upload new photos'),
             value: _settings.autoBackupEnabled,
-            onChanged: (v) => setState(() {
+            onChanged: (v) async {
+              setState(() {
               _settings = AppSettings(
                 autoBackupEnabled: v,
                 backupOverWifiOnly: _settings.backupOverWifiOnly,
@@ -64,7 +68,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 googleClientSecret: _settings.googleClientSecret,
               );
               _saveSettings();
-            }),
+              });
+              // Wire to WorkManager.
+              if (v) {
+                // Scan pending items and start periodic backup.
+                final pending = core.listPendingBackup(limit: 200);
+                if (pending.isNotEmpty) {
+                  final items = pending.map((m) => {
+                    'contentUri': m.id,
+                    'fileName': m.fileName,
+                    'mimeType': m.mimeType,
+                    'isVideo': m.mediaType == 'video',
+                  }).toList();
+                  await BackupService.startBackup(items);
+                }
+              } else {
+                await BackupService.cancelBackup();
+              }
+            },
           ),
           SwitchListTile(
             title: const Text('WiFi only'),
@@ -245,6 +266,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const Divider(height: 1),
 
+          // ── Performance section ──────────────────────────────
+          _SectionHeader(title: 'Performance'),
+          ListTile(
+            leading: const Icon(Icons.speed),
+            title: const Text('Run benchmark'),
+            subtitle: const Text('Measure cold start, scan, and memory usage'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _runBenchmark,
+          ),
+
+          const Divider(height: 1),
+
           // ── Account section ─────────────────────────────────────
           _SectionHeader(title: 'Account'),
           ListTile(
@@ -384,6 +417,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  Future<void> _runBenchmark() async {
+    final sw = Stopwatch()..start();
+
+    // Measure DB query time.
+    sw.reset();
+    final count = core.countMedia();
+    final dbTime = sw.elapsedMilliseconds;
+
+    // Measure timeline load time.
+    sw.reset();
+    final items = core.listTimeline(beforeTimestamp: null, limit: 1000);
+    final loadTime = sw.elapsedMilliseconds;
+
+    // Memory info.
+    final totalMem = ProcessInfo.currentRss;
+
+    sw.stop();
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Benchmark Results'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BenchmarkRow(label: 'Total items in DB', value: '$count'),
+            _BenchmarkRow(label: 'DB count query', value: '${dbTime}ms'),
+            _BenchmarkRow(label: 'Timeline load (1k)', value: '${loadTime}ms'),
+            _BenchmarkRow(label: 'Items loaded', value: '${items.length}'),
+            _BenchmarkRow(
+              label: 'RSS memory',
+              value: '${(totalMem / 1024 / 1024).toStringAsFixed(1)} MB',
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BenchmarkRow extends StatelessWidget {
+  const _BenchmarkRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              )),
+        ],
+      ),
+    );
   }
 }
 

@@ -11,8 +11,9 @@ import '../widgets/backup_banner.dart';
 import '../widgets/status_badge.dart';
 import 'upload_screen.dart';
 
-/// Tab Photos (PRD Part 2 §3.1): combined local+cloud timeline in one
+/// Tab Photos (PRD Part 2 S3.1): combined local+cloud timeline in one
 /// virtualized grid, status badge per photo, backup banner on progress.
+/// Supports multi-select for bulk upload.
 class PhotosScreen extends StatefulWidget {
   const PhotosScreen({super.key});
 
@@ -28,21 +29,92 @@ class _PhotosScreenState extends State<PhotosScreen> {
   bool _hasMore = true;
   bool _firstLoad = true;
 
+  // Multi-select state.
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadPage();
-    // PRD Part 2 §4.1: after granting photo access, auto-scan on first run
-    // so the grid fills without the user hunting for a button.
+    // PRD Part 2 S4.1: auto-scan on first run.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (core.countMedia() == 0) {
         _scanGallery();
       } else {
-        // Items already in DB — generate missing thumbnails (G1).
         await _ensureThumbnails();
         if (mounted) setState(() {});
       }
     });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+        if (_selectedIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.add(id);
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  Future<void> _bulkUpload() async {
+    if (_selectedIds.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final items = _items.where((m) => _selectedIds.contains(m.id)).toList();
+    int success = 0;
+    int failed = 0;
+
+    messenger.showSnackBar(
+      SnackBar(content: Text('Uploading ${items.length} photos...')),
+    );
+
+    for (final item in items) {
+      try {
+        final tempPath = await MediaScan.readFileToTemp(item.id);
+        final ext = tempPath.split('.').last.toLowerCase();
+        final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
+        final mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+        await tg.uploadPhoto(
+          handle: telegramHandle,
+          filePath: tempPath,
+          fileName: item.fileName,
+          mimeType: mimeType,
+          isVideo: isVideo,
+        );
+        core.setMediaStatus(id: item.id, status: 1);
+        success++;
+      } catch (e) {
+        failed++;
+      }
+    }
+
+    _exitSelectionMode();
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Upload complete: $success succeeded, $failed failed',
+          ),
+        ),
+      );
+      setState(() {});
+    }
   }
 
   Future<void> _loadPage({bool refresh = false}) async {
@@ -79,26 +151,52 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final settings = core.getSettings();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Photos'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _loadPage(refresh: true),
-          ),
-        ],
-      ),
+      appBar: _selectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              ),
+              title: Text('${_selectedIds.length} selected'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.select_all),
+                  tooltip: 'Select all',
+                  onPressed: () {
+                    setState(() {
+                      _selectedIds.addAll(_items.map((m) => m.id));
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cloud_upload),
+                  tooltip: 'Upload selected',
+                  onPressed: _selectedIds.isEmpty ? null : _bulkUpload,
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Photos'),
+              actions: [
+                IconButton(
+                  tooltip: 'Refresh',
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => _loadPage(refresh: true),
+                ),
+              ],
+            ),
       body: Column(
         children: [
-          BackupBanner(
-            summary: summary,
-            onTap: () => _openProgressHub(context, summary),
-          ),
+          if (!_selectionMode) ...[
+            BackupBanner(
+              summary: summary,
+              onTap: () => _openProgressHub(context, summary),
+            ),
+          ],
           Expanded(child: _buildBody(settings)),
         ],
       ),
-      floatingActionButton: _items.isEmpty
+      floatingActionButton: _selectionMode || _items.isEmpty
           ? null
           : FloatingActionButton.extended(
               onPressed: _scanGallery,
@@ -110,7 +208,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
 
   Widget _buildBody(AppSettings settings) {
     if (_firstLoad) {
-      return const Center(child: CircularProgressIndicator());
+      return _LoadingSkeleton(columns: _columns);
     }
     if (_items.isEmpty) {
       return _EmptyState(onRescan: _scanGallery);
@@ -119,7 +217,6 @@ class _PhotosScreenState extends State<PhotosScreen> {
     return RefreshIndicator(
       onRefresh: () => _loadPage(refresh: true),
       child: CustomScrollView(
-        // Keyset pagination: load more when scrolled near the end.
         controller: _scrollController,
         slivers: [
           SliverPadding(
@@ -131,7 +228,23 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 crossAxisSpacing: 2,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _GridTile(item: _items[i]),
+                (context, i) => _GridTile(
+                  item: _items[i],
+                  selected: _selectedIds.contains(_items[i].id),
+                  selectionMode: _selectionMode,
+                  onTap: () {
+                    if (_selectionMode) {
+                      _toggleSelection(_items[i].id);
+                    } else {
+                      _openPreview(context, _items[i]);
+                    }
+                  },
+                  onLongPress: () {
+                    if (!_selectionMode) {
+                      _enterSelectionMode(_items[i].id);
+                    }
+                  },
+                ),
                 childCount: _items.length,
               ),
             ),
@@ -166,9 +279,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
     );
   }
 
-  /// Scans the device gallery through the native MediaStore channel, imports
-  /// the results into the Rust core, generates missing thumbnails (G1), then
-  /// refreshes the timeline.
+  void _openPreview(BuildContext context, MediaItem item) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog.fullscreen(
+        child: _PreviewDialog(item: item),
+      ),
+    );
+  }
+
   Future<void> _scanGallery() async {
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
@@ -185,15 +304,17 @@ class _PhotosScreenState extends State<PhotosScreen> {
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Scan failed: $e — check photo permission'),
+          content: Text('Scan failed: $e'),
           backgroundColor: errorColor,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _scanGallery,
+          ),
         ),
       );
     }
   }
 
-  /// Lazy thumbnail pipeline (PRD Part 2 §7.1, G1): ask the native side for
-  /// small JPEGs only for items whose thumb_status != CACHED, then persist.
   Future<void> _ensureThumbnails() async {
     final missing = core.listMediaWithoutThumb(limit: 500);
     if (missing.isEmpty) return;
@@ -203,20 +324,56 @@ class _PhotosScreenState extends State<PhotosScreen> {
 }
 
 class _GridTile extends StatelessWidget {
-  const _GridTile({required this.item});
+  const _GridTile({
+    required this.item,
+    required this.selected,
+    required this.selectionMode,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   final MediaItem item;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final badge = photoStatusFromSync(item.syncStatus);
 
     return GestureDetector(
-      onTap: () => _openPreview(context),
+      onTap: onTap,
+      onLongPress: onLongPress,
       child: Stack(
         fit: StackFit.expand,
         children: [
           _Thumbnail(item: item),
+          // Selection overlay.
+          if (selectionMode)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.05),
+                ),
+              ),
+            ),
+          if (selectionMode)
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Icon(
+                selected ? Icons.check_circle : Icons.circle_outlined,
+                color: selected ? Theme.of(context).colorScheme.primary : Colors.white,
+                size: 22,
+                shadows: const [Shadow(blurRadius: 3, color: Colors.black)],
+              ),
+            ),
           Positioned(
             right: 4,
             bottom: 4,
@@ -232,19 +389,8 @@ class _GridTile extends StatelessWidget {
       ),
     );
   }
-
-  void _openPreview(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => Dialog.fullscreen(
-        child: _PreviewDialog(item: item),
-      ),
-    );
-  }
 }
 
-/// Placeholder thumbnail until the thumbnail pipeline (PRD Part 2 §7.1) lands:
-/// shows a deterministic color derived from the item id + media icon.
 class _Thumbnail extends StatelessWidget {
   const _Thumbnail({required this.item});
 
@@ -252,8 +398,9 @@ class _Thumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Colors.primaries[
-        item.id.hashCode.abs() % Colors.primaries.length].shade300;
+    final color =
+        Colors.primaries[item.id.hashCode.abs() % Colors.primaries.length]
+            .shade300;
 
     if (item.thumbnailPath != null) {
       return Image.file(
@@ -302,8 +449,6 @@ class _DurationChip extends StatelessWidget {
   }
 }
 
-/// Minimal unified preview (PRD Part 2 §4.3) — fullscreen, swipe between
-/// photos is a P1 follow-up once the thumbnail pipeline lands.
 class _PreviewDialog extends StatefulWidget {
   const _PreviewDialog({required this.item});
 
@@ -316,6 +461,7 @@ class _PreviewDialog extends StatefulWidget {
 class _PreviewDialogState extends State<_PreviewDialog> {
   bool _uploading = false;
   String? _error;
+  bool _uploadSuccess = false;
 
   Future<void> _uploadToVault() async {
     if (_uploading) return;
@@ -325,7 +471,6 @@ class _PreviewDialogState extends State<_PreviewDialog> {
     });
     try {
       final contentUri = widget.item.id;
-      // Read file from content URI via platform channel
       final tempPath = await MediaScan.readFileToTemp(contentUri);
       final ext = tempPath.split('.').last.toLowerCase();
       final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
@@ -337,13 +482,15 @@ class _PreviewDialogState extends State<_PreviewDialog> {
         mimeType: mimeType,
         isVideo: isVideo,
       );
-      // Update sync status in DB
       core.setMediaStatus(id: widget.item.id, status: 1);
       if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadSuccess = true;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Uploaded (msg $msgId)')),
+          SnackBar(content: Text('Uploaded successfully (msg $msgId)')),
         );
-        setState(() => _uploading = false);
       }
     } catch (e) {
       if (mounted) {
@@ -368,7 +515,7 @@ class _PreviewDialogState extends State<_PreviewDialog> {
           style: const TextStyle(fontSize: 14),
         ),
         actions: [
-          if (isNotBackedUp)
+          if (isNotBackedUp && !_uploadSuccess)
             IconButton(
               onPressed: _uploading ? null : _uploadToVault,
               icon: _uploading
@@ -383,6 +530,8 @@ class _PreviewDialogState extends State<_PreviewDialog> {
                   : const Icon(Icons.cloud_upload),
               tooltip: 'Upload to vault',
             ),
+          if (_uploadSuccess)
+            const Icon(Icons.cloud_done, color: Colors.green),
         ],
       ),
       body: Center(
@@ -392,9 +541,24 @@ class _PreviewDialogState extends State<_PreviewDialog> {
           ? Container(
               color: Theme.of(context).colorScheme.error,
               padding: const EdgeInsets.all(12),
-              child: Text(
-                _error!,
-                style: const TextStyle(color: Colors.white),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _uploadToVault,
+                    child: const Text('Retry',
+                        style: TextStyle(color: Colors.white)),
+                  ),
+                ],
               ),
             )
           : null,
@@ -402,6 +566,33 @@ class _PreviewDialogState extends State<_PreviewDialog> {
   }
 }
 
+/// Loading skeleton shown during first load.
+class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton({required this.columns});
+
+  final int columns;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(2),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: 2,
+        crossAxisSpacing: 2,
+      ),
+      itemCount: columns * 6,
+      itemBuilder: (_, _) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty state with helpful CTA.
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onRescan});
 
@@ -410,28 +601,35 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.photo_library_outlined,
-              size: 64, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 12),
-          Text('No photos yet', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Scan your gallery to start backing up.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onRescan,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Scan gallery'),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.photo_library_outlined,
+                size: 72, color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 16),
+            Text(
+              'No photos yet',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Scan your gallery to start backing up photos to your private Telegram vault.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onRescan,
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Scan gallery'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-
-

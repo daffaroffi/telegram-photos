@@ -105,3 +105,7 @@ List<Album> listAlbums() => RustLib.instance.api.crateApiDbListAlbums();
 /// Status values: 0=NOT_BACKED_UP, 1=BACKED_UP, 2=PARTIAL, 3=CONFLICT, 4=TRASHED
 void setMediaStatus({required String id, required int status}) =>
     RustLib.instance.api.crateApiDbSetMediaStatus(id: id, status: status);
+
+/// List media items that haven't been backed up yet, for background backup.
+List<MediaItem> listPendingBackup({required PlatformInt64 limit}) =>
+    RustLib.instance.api.crateApiDbListPendingBackup(limit: limit);

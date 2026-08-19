@@ -8,7 +8,6 @@ import 'mirror.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Check if there is an existing authorized session (cold start).
-/// Tries to restore from DB if no in-memory client exists.
 Future<bool> checkConnection({
   required TelegramHandle handle,
   required String appDataDir,
@@ -78,8 +77,13 @@ Future<bool> logout({
   appDataDir: appDataDir,
 );
 
+/// Get vault info (file count, size).
+Future<VaultInfo> getVaultInfo() =>
+    RustLib.instance.api.crateApiTelegramGetVaultInfo();
+
 /// Upload a single photo file to the Telegram vault channel.
-/// Returns the Telegram message ID on success.
+/// If encryption is enabled in settings and vault is unlocked, encrypts
+/// the file before upload. Returns the Telegram message ID on success.
 Future<PlatformInt64> uploadPhoto({
   required TelegramHandle handle,
   required String filePath,
