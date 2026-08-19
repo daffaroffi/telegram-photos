@@ -79,3 +79,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PRD Part 2 document.
 - Telephoto reverse engineering analysis.
 - Migration plan from Tauri/WebView to Flutter + Rust core.
+
+## [0.3.2] - 2026-08-19
+
+### Fixed
+- AUTH_RESTART error: delete stale session file and re-initialize client on retry.
+- `DroppableDisposedException`: all Telegram functions now take `&TelegramHandle` (reference).
+- Tokio reactor panic: `check_connection` is now async.
+- Onboarding Continue button: `onChanged` callback triggers rebuild.
+- Onboarding flow: `onAuthenticated` callback switches from onboarding to main app.
+- Session restore on cold start: save `.telegram_creds` file + read real `appDataDir`.
+- All error messages translated from Indonesian to English.
+- PHONE_MIGRATE error handling added.
+
+### Verified
+- Full E2E test on emulator: API credentials -> Phone OTP -> Login -> Photo grid.
+- 4-tab shell (Photos/Search/Library/Settings) renders correctly.
+- Photo grid displays 12+ items with "On this device" badge.
