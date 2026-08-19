@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
 
-/// Tab Search (PRD Part 2 §3.2): instant results by file name, caption and
+/// Tab Search (PRD Part 2 S3.2): instant results by file name, caption and
 /// #hashtag; quick chips for common filters.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -36,11 +37,8 @@ class _SearchScreenState extends State<SearchScreen> {
       final all = core.listTimeline(beforeTimestamp: null, limit: 5000);
       var hits = <MediaItem>[];
 
-      // #hashtag search goes through the caption_tags index.
       if (q.startsWith('#')) {
-        final ids = core
-            .searchByHashtag(tag: q.substring(1))
-            .toSet();
+        final ids = core.searchByHashtag(tag: q.substring(1)).toSet();
         hits = all.where((m) => ids.contains(m.id)).toList();
       } else {
         hits = all
@@ -68,8 +66,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   m.fileName.toLowerCase().contains('screen_'))
               .toList();
         case 'recent':
-          final cutoff =
-              DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
+          final cutoff = DateTime.now()
+              .subtract(const Duration(days: 30))
+              .millisecondsSinceEpoch;
           _results = hits.where((m) => m.dateTaken >= cutoff).toList();
         default:
           _results = hits;
@@ -81,23 +80,31 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _query,
-          autofocus: false,
-          decoration: const InputDecoration(
-            hintText: 'Search photos, captions, #tags…',
-            border: InputBorder.none,
+        title: Semantics(
+          label: 'Search photos',
+          child: TextField(
+            controller: _query,
+            autofocus: false,
+            decoration: InputDecoration(
+              hintText: 'Search photos, captions, #tags...',
+              prefixIcon: const Icon(LucideIcons.search, size: 20),
+              border: InputBorder.none,
+              hintStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            onChanged: _runSearch,
           ),
-          onChanged: _runSearch,
         ),
         actions: [
           if (_query.text.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.clear),
+              icon: const Icon(LucideIcons.xCircle),
               onPressed: () {
                 _query.clear();
                 _runSearch('');
               },
+              tooltip: 'Clear search',
             ),
         ],
       ),
@@ -118,12 +125,51 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildResults() {
     if (!_searched) {
-      return const Center(
-        child: Text('Search your photos, captions and #hashtags.'),
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.search,
+              size: 48,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Search your photos, captions and #hashtags.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
       );
     }
     if (_results.isEmpty) {
-      return const Center(child: Text('No matches.'));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              LucideIcons.circleAlert,
+              size: 48,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No matches found',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Try a different search term or filter.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
@@ -132,11 +178,18 @@ class _SearchScreenState extends State<SearchScreen> {
         final m = _results[i];
         return ListTile(
           leading: Icon(
-            m.mediaType == 'video' ? Icons.movie_outlined : Icons.image_outlined,
+            m.mediaType == 'video' ? LucideIcons.video : LucideIcons.image,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           title: Text(m.fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(_formatDate(m.dateTaken)),
-          trailing: Text(_formatSize(m.fileSizeBytes)),
+          trailing: Text(
+            _formatSize(m.fileSizeBytes),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         );
       },
     );
@@ -158,6 +211,8 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
+// ─── Quick Chips ──────────────────────────────────────────────────────────────
+
 class _QuickChips extends StatelessWidget {
   const _QuickChips({required this.selected, required this.onSelect});
 
@@ -167,25 +222,33 @@ class _QuickChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chips = [
-      ('all', 'All'),
-      ('videos', 'Videos'),
-      ('screenshots', 'Screenshots'),
-      ('recent', 'Last 30 days'),
+      ('all', 'All', LucideIcons.images),
+      ('videos', 'Videos', LucideIcons.video),
+      ('screenshots', 'Screenshots', LucideIcons.camera),
+      ('recent', 'Last 30 days', LucideIcons.clock),
     ];
 
     return SizedBox(
-      height: 48,
+      height: 56, // Increased for better touch target
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: chips.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
-          final (value, label) = chips[i];
+          final (value, label, icon) = chips[i];
           return ChoiceChip(
-            label: Text(label),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16),
+                const SizedBox(width: 6),
+                Text(label),
+              ],
+            ),
             selected: selected == value,
             onSelected: (_) => onSelect(value),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           );
         },
       ),

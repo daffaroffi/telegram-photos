@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Status badge per photo (PRD Part 2 §3.1):
-/// 🔵 backed up · ⏳ uploading (animated) · ⚠ failed · 📱 local only.
+/// Status badge per photo (PRD Part 2 S3.1):
+/// Uses Lucide icons + semantic Material 3 colors.
 enum PhotoStatus { backedUp, uploading, failed, localOnly }
 
 class StatusBadge extends StatelessWidget {
@@ -13,17 +14,25 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, color, tooltip) = switch (status) {
       PhotoStatus.backedUp => (
-          Icons.cloud_done_outlined,
-          const Color(0xFF2AABEE),
+          LucideIcons.cloud,
+          Theme.of(context).colorScheme.primary,
           'Backed up',
         ),
       PhotoStatus.uploading => (
-          Icons.cloud_upload_outlined,
-          const Color(0xFFFFB300),
-          'Uploading…',
+          LucideIcons.upload,
+          Theme.of(context).colorScheme.tertiary,
+          'Uploading...',
         ),
-      PhotoStatus.failed => (Icons.error_outline, const Color(0xFFE53935), 'Retry'),
-      PhotoStatus.localOnly => (Icons.smartphone, Colors.grey.shade600, 'On this device'),
+      PhotoStatus.failed => (
+          LucideIcons.circleAlert,
+          Theme.of(context).colorScheme.error,
+          'Retry',
+        ),
+      PhotoStatus.localOnly => (
+          LucideIcons.smartphone,
+          Theme.of(context).colorScheme.outline,
+          'On this device',
+        ),
     };
 
     return Tooltip(
@@ -31,12 +40,16 @@ class StatusBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.45),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
           shape: BoxShape.circle,
+          border: Border.all(
+            color: color.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
         child: status == PhotoStatus.uploading
             ? _UploadingIndicator(color: color)
-            : Icon(icon, size: 16, color: color),
+            : Icon(icon, size: 14, color: color),
       ),
     );
   }
@@ -70,14 +83,13 @@ class _UploadingIndicatorState extends State<_UploadingIndicator>
       animation: _controller,
       builder: (context, _) => Transform.rotate(
         angle: _controller.value * 2 * 3.14159,
-        child: const Icon(Icons.sync, size: 16),
+        child: Icon(LucideIcons.refreshCw, size: 14, color: widget.color),
       ),
     );
   }
 }
 
 /// Map a core `syncStatus` string to a [PhotoStatus].
-/// Core statuses are uppercase (BACKED_UP / UPLOADING / PENDING / FAILED).
 PhotoStatus photoStatusFromSync(String syncStatus) {
   switch (syncStatus.toUpperCase()) {
     case 'BACKED_UP':

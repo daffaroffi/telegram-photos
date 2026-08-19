@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
 
-/// Tab Library (PRD Part 2 §3.3): Collections, Folders, Favorites, Memories,
+/// Tab Library (PRD Part 2 S3.3): Collections, Folders, Favorites, Memories,
 /// Trash. Collections are backed by the real DB; the rest are P1 follow-ups.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -63,7 +64,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         actions: [
           IconButton(
             tooltip: 'New collection',
-            icon: const Icon(Icons.create_new_folder_outlined),
+            icon: const Icon(LucideIcons.plus),
             onPressed: _createCollection,
           ),
         ],
@@ -72,16 +73,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         padding: const EdgeInsets.all(8),
         children: [
           _SectionHeader(
+            icon: LucideIcons.layers,
             title: 'Collections',
             trailing: Text('${_collections.length}',
                 style: Theme.of(context).textTheme.bodySmall),
           ),
           if (_collections.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'No collections yet. Tap + to create one.',
-                style: Theme.of(context).textTheme.bodyMedium,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: Column(
+                children: [
+                  Icon(
+                    LucideIcons.layers,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No collections yet',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap + to create your first collection.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
             )
           else
@@ -90,13 +109,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   onTap: () => _openCollection(c),
                 )),
           const Divider(height: 24),
-          const _SectionHeader(title: 'Coming in P1'),
-          ...const [
-            _PlaceholderTile(icon: Icons.favorite_outline, title: 'Favorites'),
-            _PlaceholderTile(icon: Icons.history, title: 'Memories'),
-            _PlaceholderTile(icon: Icons.delete_outline, title: 'Trash'),
-            _PlaceholderTile(icon: Icons.folder_outlined, title: 'Device folders'),
-          ],
+          _SectionHeader(
+            icon: LucideIcons.clock,
+            title: 'Coming soon',
+          ),
+          const _PlaceholderTile(
+            icon: LucideIcons.heart,
+            title: 'Favorites',
+            subtitle: 'P1',
+          ),
+          const _PlaceholderTile(
+            icon: LucideIcons.clock,
+            title: 'Memories',
+            subtitle: 'P1',
+          ),
+          const _PlaceholderTile(
+            icon: LucideIcons.trash2,
+            title: 'Trash',
+            subtitle: 'P1',
+          ),
+          const _PlaceholderTile(
+            icon: LucideIcons.folder,
+            title: 'Device folders',
+            subtitle: 'P1',
+          ),
         ],
       ),
     );
@@ -111,6 +147,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 }
+
+// ─── Collection Screen ────────────────────────────────────────────────────────
 
 class _CollectionScreen extends StatefulWidget {
   const _CollectionScreen({required this.collection});
@@ -135,7 +173,30 @@ class _CollectionScreenState extends State<_CollectionScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.collection.name)),
       body: _items.isEmpty
-          ? const Center(child: Text('Collection is empty.'))
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.image,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Collection is empty',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add photos from the Photos tab.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            )
           : GridView.builder(
               padding: const EdgeInsets.all(2),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -148,13 +209,13 @@ class _CollectionScreenState extends State<_CollectionScreen> {
                 final m = _items[i];
                 return Container(
                   color: Colors.primaries[
-                      m.id.hashCode.abs() % Colors.primaries.length]
+                          m.id.hashCode.abs() % Colors.primaries.length]
                       .shade200,
                   child: Center(
                     child: Icon(
                       m.mediaType == 'video'
-                          ? Icons.movie_outlined
-                          : Icons.image_outlined,
+                          ? LucideIcons.video
+                          : LucideIcons.image,
                     ),
                   ),
                 );
@@ -163,6 +224,8 @@ class _CollectionScreenState extends State<_CollectionScreen> {
     );
   }
 }
+
+// ─── Collection Tile ──────────────────────────────────────────────────────────
 
 class _CollectionTile extends StatelessWidget {
   const _CollectionTile({required this.collection, required this.onTap});
@@ -175,23 +238,30 @@ class _CollectionTile extends StatelessWidget {
     return ListTile(
       leading: CircleAvatar(
         child: Icon(
-          collection.isCloud ? Icons.cloud_outlined : Icons.photo_library_outlined,
+          collection.isCloud ? LucideIcons.cloud : LucideIcons.image,
         ),
       ),
       title: Text(collection.name),
       subtitle: Text(
         '${collection.itemCount} item${collection.itemCount == 1 ? '' : 's'}'
-        '${collection.isCloud ? ' · cloud' : ''}',
+        '${collection.isCloud ? ' . cloud' : ''}',
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(LucideIcons.chevronRight),
       onTap: onTap,
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.trailing});
+// ─── Section Header ───────────────────────────────────────────────────────────
 
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    this.trailing,
+  });
+
+  final IconData icon;
   final String title;
   final Widget? trailing;
 
@@ -201,6 +271,8 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 8),
           Text(title, style: Theme.of(context).textTheme.titleSmall),
           const Spacer(),
           ?trailing,
@@ -210,11 +282,18 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+// ─── Placeholder Tile ─────────────────────────────────────────────────────────
+
 class _PlaceholderTile extends StatelessWidget {
-  const _PlaceholderTile({required this.icon, required this.title});
+  const _PlaceholderTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   final IconData icon;
   final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -222,7 +301,7 @@ class _PlaceholderTile extends StatelessWidget {
       enabled: false,
       leading: Icon(icon),
       title: Text(title),
-      subtitle: const Text('Planned'),
+      subtitle: Text(subtitle),
     );
   }
 }

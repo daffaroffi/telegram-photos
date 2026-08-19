@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../main.dart' show telegramHandle;
 import '../platform/media_scan.dart';
@@ -37,7 +39,6 @@ class _PhotosScreenState extends State<PhotosScreen> {
   void initState() {
     super.initState();
     _loadPage();
-    // PRD Part 2 S4.1: auto-scan on first run.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (core.countMedia() == 0) {
         _scanGallery();
@@ -49,6 +50,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   void _toggleSelection(String id) {
+    HapticFeedback.selectionClick();
     setState(() {
       if (_selectedIds.contains(id)) {
         _selectedIds.remove(id);
@@ -60,6 +62,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
   }
 
   void _enterSelectionMode(String id) {
+    HapticFeedback.mediumImpact();
     setState(() {
       _selectionMode = true;
       _selectedIds.add(id);
@@ -121,9 +124,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
     if (_loading) return;
     setState(() => _loading = true);
 
-    final before = refresh || _items.isEmpty
-        ? null
-        : _items.last.dateTaken;
+    final before = refresh || _items.isEmpty ? null : _items.last.dateTaken;
     final page = core.listTimeline(beforeTimestamp: before, limit: _pageSize);
 
     setState(() {
@@ -148,19 +149,19 @@ class _PhotosScreenState extends State<PhotosScreen> {
   @override
   Widget build(BuildContext context) {
     final summary = core.uploadsSummary();
-    final settings = core.getSettings();
 
     return Scaffold(
       appBar: _selectionMode
           ? AppBar(
               leading: IconButton(
-                icon: const Icon(Icons.close),
+                icon: const Icon(LucideIcons.x),
                 onPressed: _exitSelectionMode,
+                tooltip: 'Cancel selection',
               ),
               title: Text('${_selectedIds.length} selected'),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.select_all),
+                  icon: const Icon(LucideIcons.checkCheck),
                   tooltip: 'Select all',
                   onPressed: () {
                     setState(() {
@@ -169,7 +170,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.cloud_upload),
+                  icon: const Icon(LucideIcons.upload),
                   tooltip: 'Upload selected',
                   onPressed: _selectedIds.isEmpty ? null : _bulkUpload,
                 ),
@@ -178,9 +179,15 @@ class _PhotosScreenState extends State<PhotosScreen> {
           : AppBar(
               title: const Text('Photos'),
               actions: [
+                if (_items.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Scan gallery',
+                    icon: const Icon(LucideIcons.scan),
+                    onPressed: _scanGallery,
+                  ),
                 IconButton(
                   tooltip: 'Refresh',
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(LucideIcons.refreshCw),
                   onPressed: () => _loadPage(refresh: true),
                 ),
               ],
@@ -190,23 +197,16 @@ class _PhotosScreenState extends State<PhotosScreen> {
           if (!_selectionMode) ...[
             BackupBanner(
               summary: summary,
-              onTap: () => _openProgressHub(context, summary),
+              onTap: () => _openProgressHub(context),
             ),
           ],
-          Expanded(child: _buildBody(settings)),
+          Expanded(child: _buildBody()),
         ],
       ),
-      floatingActionButton: _selectionMode || _items.isEmpty
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _scanGallery,
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: const Text('Scan gallery'),
-            ),
     );
   }
 
-  Widget _buildBody(AppSettings settings) {
+  Widget _buildBody() {
     if (_firstLoad) {
       return _LoadingSkeleton(columns: _columns);
     }
@@ -255,8 +255,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
                 padding: const EdgeInsets.all(12),
                 child: Center(
                   child: _loading
-                      ? const CircularProgressIndicator()
-                      : const Text(''),
+                  ? const CircularProgressIndicator()
+                  : const Text(''),
                 ),
               ),
             ),
@@ -273,18 +273,18 @@ class _PhotosScreenState extends State<PhotosScreen> {
       }
     });
 
-  void _openProgressHub(BuildContext context, UploadsSummary summary) {
+  void _openProgressHub(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const UploadScreen()),
     );
   }
 
   void _openPreview(BuildContext context, MediaItem item) {
-    showDialog<void>(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => Dialog.fullscreen(
-        child: _PreviewDialog(item: item),
-      ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => _PreviewBottomSheet(item: item),
     );
   }
 
@@ -306,10 +306,7 @@ class _PhotosScreenState extends State<PhotosScreen> {
         SnackBar(
           content: Text('Scan failed: $e'),
           backgroundColor: errorColor,
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: _scanGallery,
-          ),
+          action: SnackBarAction(label: 'Retry', onPressed: _scanGallery),
         ),
       );
     }
@@ -322,6 +319,8 @@ class _PhotosScreenState extends State<PhotosScreen> {
     core.saveThumbnailPaths(json: mapJson);
   }
 }
+
+// ─── Grid Tile ────────────────────────────────────────────────────────────────
 
 class _GridTile extends StatelessWidget {
   const _GridTile({
@@ -345,51 +344,58 @@ class _GridTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _Thumbnail(item: item),
-          // Selection overlay.
-          if (selectionMode)
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: selected
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.3)
-                      : Colors.black.withValues(alpha: 0.05),
+      child: Semantics(
+        label: '${item.fileName}${selected ? ', selected' : ''}',
+        button: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _Thumbnail(item: item),
+            if (selectionMode)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.05),
+                  ),
                 ),
               ),
-            ),
-          if (selectionMode)
-            Positioned(
-              top: 4,
-              left: 4,
-              child: Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
-                color: selected ? Theme.of(context).colorScheme.primary : Colors.white,
-                size: 22,
-                shadows: const [Shadow(blurRadius: 3, color: Colors.black)],
+            if (selectionMode)
+              Positioned(
+                top: 4,
+                left: 4,
+                child: Icon(
+                  selected ? LucideIcons.circleCheck : LucideIcons.circle,
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.white,
+                  size: 22,
+                  shadows: const [Shadow(blurRadius: 3, color: Colors.black)],
+                ),
               ),
-            ),
-          Positioned(
-            right: 4,
-            bottom: 4,
-            child: StatusBadge(status: badge),
-          ),
-          if (item.mediaType == 'video' && item.durationMs != null)
             Positioned(
-              left: 4,
+              right: 4,
               bottom: 4,
-              child: _DurationChip(durationMs: item.durationMs!),
+              child: StatusBadge(status: badge),
             ),
-        ],
+            if (item.mediaType == 'video' && item.durationMs != null)
+              Positioned(
+                left: 4,
+                bottom: 4,
+                child: _DurationChip(durationMs: item.durationMs!),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
+
+// ─── Thumbnail ────────────────────────────────────────────────────────────────
 
 class _Thumbnail extends StatelessWidget {
   const _Thumbnail({required this.item});
@@ -417,7 +423,9 @@ class _Thumbnail extends StatelessWidget {
       color: color.withValues(alpha: 0.45),
       child: Center(
         child: Icon(
-          item.mediaType == 'video' ? Icons.movie_outlined : Icons.image_outlined,
+          item.mediaType == 'video'
+              ? LucideIcons.video
+              : LucideIcons.image,
           color: Colors.white.withValues(alpha: 0.85),
           size: 28,
         ),
@@ -425,6 +433,8 @@ class _Thumbnail extends StatelessWidget {
     );
   }
 }
+
+// ─── Duration Chip ────────────────────────────────────────────────────────────
 
 class _DurationChip extends StatelessWidget {
   const _DurationChip({required this.durationMs});
@@ -449,33 +459,35 @@ class _DurationChip extends StatelessWidget {
   }
 }
 
-class _PreviewDialog extends StatefulWidget {
-  const _PreviewDialog({required this.item});
+// ─── Preview Bottom Sheet ─────────────────────────────────────────────────────
+
+class _PreviewBottomSheet extends StatefulWidget {
+  const _PreviewBottomSheet({required this.item});
 
   final MediaItem item;
 
   @override
-  State<_PreviewDialog> createState() => _PreviewDialogState();
+  State<_PreviewBottomSheet> createState() => _PreviewBottomSheetState();
 }
 
-class _PreviewDialogState extends State<_PreviewDialog> {
+class _PreviewBottomSheetState extends State<_PreviewBottomSheet> {
   bool _uploading = false;
   String? _error;
   bool _uploadSuccess = false;
 
   Future<void> _uploadToVault() async {
     if (_uploading) return;
+    HapticFeedback.lightImpact();
     setState(() {
       _uploading = true;
       _error = null;
     });
     try {
-      final contentUri = widget.item.id;
-      final tempPath = await MediaScan.readFileToTemp(contentUri);
+      final tempPath = await MediaScan.readFileToTemp(widget.item.id);
       final ext = tempPath.split('.').last.toLowerCase();
       final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
       final mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
-      final msgId = await tg.uploadPhoto(
+      await tg.uploadPhoto(
         handle: telegramHandle,
         filePath: tempPath,
         fileName: widget.item.fileName,
@@ -483,16 +495,18 @@ class _PreviewDialogState extends State<_PreviewDialog> {
         isVideo: isVideo,
       );
       core.setMediaStatus(id: widget.item.id, status: 1);
+      HapticFeedback.mediumImpact();
       if (mounted) {
         setState(() {
           _uploading = false;
           _uploadSuccess = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Uploaded successfully (msg $msgId)')),
+          SnackBar(content: Text('Uploaded successfully')),
         );
       }
     } catch (e) {
+      HapticFeedback.heavyImpact();
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -505,68 +519,163 @@ class _PreviewDialogState extends State<_PreviewDialog> {
   @override
   Widget build(BuildContext context) {
     final isNotBackedUp = widget.item.syncStatus == 'NOT_BACKED_UP';
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: Text(
-          widget.item.fileName,
-          style: const TextStyle(fontSize: 14),
-        ),
-        actions: [
-          if (isNotBackedUp && !_uploadSuccess)
-            IconButton(
-              onPressed: _uploading ? null : _uploadToVault,
-              icon: _uploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.cloud_upload),
-              tooltip: 'Upload to vault',
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outlineVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          if (_uploadSuccess)
-            const Icon(Icons.cloud_done, color: Colors.green),
-        ],
-      ),
-      body: Center(
-        child: _Thumbnail(item: widget.item),
-      ),
-      bottomNavigationBar: _error != null
-          ? Container(
-              color: Theme.of(context).colorScheme.error,
+          ),
+          // Photo preview
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: _Thumbnail(item: widget.item),
+                ),
+              ),
+            ),
+          ),
+          // File info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  widget.item.mediaType == 'video'
+                      ? LucideIcons.video
+                      : LucideIcons.image,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.item.fileName,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  _formatSize(widget.item.fileSizeBytes),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Action buttons
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomPadding),
+            child: Row(
+              children: [
+                if (isNotBackedUp && !_uploadSuccess)
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _uploading ? null : _uploadToVault,
+                      icon: _uploading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(LucideIcons.upload),
+                      label: Text(_uploading ? 'Uploading...' : 'Upload to vault'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48), // 48dp touch target
+                      ),
+                    ),
+                  ),
+                if (_uploadSuccess)
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: null,
+                      icon: const Icon(LucideIcons.circleCheck),
+                      label: const Text('Backed up'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                    ),
+                  ),
+                if (!isNotBackedUp && !_uploadSuccess)
+                  Expanded(
+                    child: FilledButton.tonal(
+                      onPressed: null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      child: const Text('Already backed up'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Error bar
+          if (_error != null)
+            Container(
+              width: double.infinity,
+              color: Theme.of(context).colorScheme.errorContainer,
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.white),
+                  Icon(
+                    LucideIcons.circleAlert,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   TextButton(
                     onPressed: _uploadToVault,
-                    child: const Text('Retry',
-                        style: TextStyle(color: Colors.white)),
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            )
-          : null,
+            ),
+        ],
+      ),
     );
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }
 
-/// Loading skeleton shown during first load.
+// ─── Loading Skeleton ─────────────────────────────────────────────────────────
+
 class _LoadingSkeleton extends StatelessWidget {
   const _LoadingSkeleton({required this.columns});
 
@@ -584,7 +693,10 @@ class _LoadingSkeleton extends StatelessWidget {
       itemCount: columns * 6,
       itemBuilder: (_, _) => Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(4),
         ),
       ),
@@ -592,7 +704,8 @@ class _LoadingSkeleton extends StatelessWidget {
   }
 }
 
-/// Empty state with helpful CTA.
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onRescan});
 
@@ -606,8 +719,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.photo_library_outlined,
-                size: 72, color: Theme.of(context).colorScheme.outline),
+            Icon(
+              LucideIcons.image,
+              size: 72,
+              color: Theme.of(context).colorScheme.outline,
+            ),
             const SizedBox(height: 16),
             Text(
               'No photos yet',
@@ -624,8 +740,11 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onRescan,
-              icon: const Icon(Icons.photo_library),
+              icon: const Icon(LucideIcons.scan),
               label: const Text('Scan gallery'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 48), // 48dp touch target
+              ),
             ),
           ],
         ),

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../rust/api/db.dart' as core;
 import '../rust/api/mirror.dart';
 
-/// Upload / backup progress screen (PRD Part 2 §4.4).
+/// Upload / backup progress screen (PRD Part 2 S4.4).
 ///
 /// Design principles applied:
-/// - Subtractive: only show what matters — progress, failures, action
+/// - Subtractive: only show what matters - progress, failures, action
 /// - Engineering constraints: empty, loading, error, partial states
 /// - Clear hierarchy: total progress > individual items > actions
-/// - Platform conventions: Material 3, proper touch targets
+/// - Platform conventions: Material 3, proper spacing, Lucide icons
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
 
@@ -59,7 +60,7 @@ class _UploadScreenState extends State<UploadScreen> {
         title: const Text('Backup Progress'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(LucideIcons.refreshCw),
             onPressed: _refresh,
             tooltip: 'Refresh',
           ),
@@ -88,11 +89,21 @@ class _UploadScreenState extends State<UploadScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                'Active uploads',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.upload,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Active uploads',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -118,8 +129,8 @@ class _UploadScreenState extends State<UploadScreen> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.check_circle_outline,
-                    size: 16,
+                    LucideIcons.circleCheck,
+                    size: 18,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
@@ -138,7 +149,8 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 }
 
-/// Summary card showing total backup progress.
+// ─── Summary Card ─────────────────────────────────────────────────────────────
+
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({required this.summary});
   final UploadsSummary summary;
@@ -167,10 +179,13 @@ class _SummaryCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 if (summary.uploadingCount > 0)
-                  const SizedBox(
+                  SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
               ],
             ),
@@ -187,21 +202,25 @@ class _SummaryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _Stat(
+                  icon: LucideIcons.clock,
                   label: 'Queued',
                   count: summary.queuedCount,
                   color: Theme.of(context).colorScheme.outline,
                 ),
                 _Stat(
+                  icon: LucideIcons.upload,
                   label: 'Uploading',
                   count: summary.uploadingCount,
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 _Stat(
+                  icon: LucideIcons.circleAlert,
                   label: 'Failed',
                   count: summary.failedCount,
                   color: Theme.of(context).colorScheme.error,
                 ),
                 _Stat(
+                  icon: LucideIcons.circleCheck,
                   label: 'Done',
                   count: summary.backedUpCount,
                   color: Theme.of(context).colorScheme.primary,
@@ -215,8 +234,17 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+// ─── Stat ─────────────────────────────────────────────────────────────────────
+
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.count, required this.color});
+  const _Stat({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  final IconData icon;
   final String label;
   final int count;
   final Color color;
@@ -225,9 +253,14 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
         Text(
           '$count',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: color),
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(color: color, fontWeight: FontWeight.w600),
         ),
         Text(
           label,
@@ -238,9 +271,11 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// Individual upload tile with progress and retry.
+// ─── Upload Tile ──────────────────────────────────────────────────────────────
+
 class _UploadTile extends StatelessWidget {
   const _UploadTile({required this.upload, required this.onRetry});
+
   final Upload upload;
   final VoidCallback onRetry;
 
@@ -254,14 +289,19 @@ class _UploadTile extends StatelessWidget {
 
     return ListTile(
       leading: isFailed
-          ? const Icon(Icons.error_outline, color: Colors.red)
+          ? Icon(LucideIcons.circleAlert,
+              color: Theme.of(context).colorScheme.error)
           : isUploading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 )
-              : const Icon(Icons.hourglass_empty, color: Colors.orange),
+              : Icon(LucideIcons.clock,
+                  color: Theme.of(context).colorScheme.outline),
       title: Text(
         upload.mediaId,
         maxLines: 1,
@@ -275,11 +315,17 @@ class _UploadTile extends StatelessWidget {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             )
           : isUploading
-              ? LinearProgressIndicator(value: progress)
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: LinearProgressIndicator(value: progress),
+                )
               : null,
       trailing: isFailed
-          ? TextButton(
+          ? FilledButton.tonal(
               onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 36), // 36dp within tile
+              ),
               child: const Text('Retry'),
             )
           : Text(
@@ -290,7 +336,8 @@ class _UploadTile extends StatelessWidget {
   }
 }
 
-/// Empty state when no uploads exist.
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -299,19 +346,21 @@ class _EmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.cloud_upload_outlined,
-            size: 48,
+            LucideIcons.cloudOff,
+            size: 56,
             color: Theme.of(context).colorScheme.outline,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             'No uploads yet',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             'Photos will appear here when backup starts.',
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           ),
         ],
       ),
