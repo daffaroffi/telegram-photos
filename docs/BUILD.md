@@ -1,4 +1,4 @@
-# Build & Installation Guide
+# Build and Installation Guide
 
 ## Prerequisites
 
@@ -9,7 +9,6 @@
 | Android SDK | API 34 | Via Android Studio |
 | Android NDK | 28.x | Bundled with SDK |
 | Java | 17+ | Required by Gradle |
-| Node.js | 20+ | Only for old Tauri build (deprecated) |
 
 ## Development Build
 
@@ -23,10 +22,20 @@ flutter pub get
 # 3. Generate FRB bindings (after any Rust API change)
 flutter_rust_bridge_codegen generate
 
-# 4. Build debug APK
+# 4. Build Rust .so libraries
+cd rust
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 build --release
+cd ..
+
+# 5. Copy .so files to jniLibs
+# (cargo-ndk outputs to target/, Gradle reads from jniLibs/)
+cp -r rust/target/aarch64-linux-android/release/*.so \
+      android/app/src/main/jniLibs/arm64-v8a/
+
+# 6. Build debug APK
 flutter build apk --debug
 
-# 5. Install on connected device/emulator
+# 7. Install on connected device/emulator
 adb install build/app/outputs/flutter-apk/app-debug.apk
 ```
 
@@ -37,28 +46,28 @@ adb install build/app/outputs/flutter-apk/app-debug.apk
 flutter build apk --release --split-per-abi
 
 # Output locations:
-# build/app/outputs/flutter-apk/app-arm64-v8a-release.apk  (~15-25 MB)
-# build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-# build/app/outputs/flutter-apk/app-x86_64-release.apk
+# build/app/outputs/flutter-apk/app-arm64-v8a-release.apk    (~22 MB)
+# build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk   (~18 MB)
+# build/app/outputs/flutter-apk/app-x86_64-release.apk        (~24 MB)
 ```
 
 ## Signing
 
-For release builds, configure signing in `android/app/build.gradle`:
+For release builds, configure signing in `android/app/build.gradle.kts`:
 
-```groovy
+```kotlin
 android {
     signingConfigs {
-        release {
-            storeFile file('path/to/keystore.jks')
-            storePassword 'your-store-password'
-            keyAlias 'your-key-alias'
-            keyPassword 'your-key-password'
+        create("release") {
+            storeFile = file("path/to/keystore.jks")
+            storePassword = "your-store-password"
+            keyAlias = "your-key-alias"
+            keyPassword = "your-key-password"
         }
     }
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
@@ -68,6 +77,21 @@ Generate a keystore:
 
 ```bash
 keytool -genkey -v -keystore keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias my-key
+```
+
+## Dependencies
+
+The Android project requires these Gradle dependencies:
+
+```kotlin
+dependencies {
+    // WorkManager for background backup
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.core:core-ktx:1.12.0")
+
+    // Flutter embedder (auto-added by Flutter)
+    implementation("androidx.appcompat:appcompat:1.6.1")
+}
 ```
 
 ## Troubleshooting
@@ -81,11 +105,38 @@ ls $ANDROID_HOME/ndk/
 # Use the version listed there
 ```
 
+### FRB content hash mismatch
+
+The Dart FRB generated code and the compiled Rust .so must have matching content hashes. If you see:
+
+```
+FRB content hash mismatch: Dart=-53940234, Rust=1614285601
+```
+
+Fix by:
+
+```bash
+# 1. Clean Rust build
+cd app_flutter/rust
+cargo clean
+
+# 2. Rebuild Rust .so
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 build --release
+
+# 3. Copy fresh .so to jniLibs
+cp target/aarch64-linux-android/release/libflutter_rust_bridge.so \
+   ../android/app/src/main/jniLibs/arm64-v8a/
+
+# 4. Rebuild Flutter APK
+cd ..
+flutter build apk --debug
+```
+
 ### FRB codegen produces opaque types
 
 If types from `telegram_photos_core` appear as `RustOpaque` in Dart, add a mirror in `app_flutter/rust/src/api/mirror.rs`. See [FRB external types guide](https://cjycode.com/flutter_rust_bridge/guides/third-party/manual/external-types).
 
-### Cargokit doesn't produce .so files
+### Cargokit does not produce .so files
 
 The cargokit gradle plugin needs `FLUTTER_ROOT` set. When running `flutter build`, this is automatic. When running `./gradlew` directly, ensure `local.properties` has the correct Flutter SDK path.
 
@@ -95,11 +146,24 @@ Grammers depends on `core2 v0.4.0` which is yanked on crates.io. We vendor a stu
 
 ### App crashes on install (versionCode downgrade)
 
-If installing over a previous Tauri build, the versionCode must be higher. Current versionCode is `1002` (version `0.3.0+1002`).
+If installing over a previous build, the versionCode must be higher. Check `app_flutter/pubspec.yaml` for the current version.
+
+### Impeller screencap shows black screen
+
+Flutter's Impeller rendering engine is incompatible with `adb screencap` on some emulators. Workaround:
+
+```bash
+# Disable Impeller for testing
+adb shell setprop debug.enable_impeller 0
+# Restart the app
+adb shell am force-stop com.telegramphotos.app
+adb shell am start -n com.telegramphotos.app/.MainActivity
+```
 
 ## Architecture Notes
 
-- **Core crate** (`core/`) compiles as `rlib` — no FFI, pure Rust.
-- **FRB bridge** (`app_flutter/rust/`) compiles as `cdylib` + `staticlib` — produces `.so` for Android.
+- **Core crate** (`core/`) compiles as `rlib` -- no FFI, pure Rust.
+- **FRB bridge** (`app_flutter/rust/`) compiles as `cdylib` + `staticlib` -- produces `.so` for Android.
 - **Cargokit** handles cross-compilation from Rust to Android ABIs (arm64, armv7, x86_64, x86).
 - **Grammers** requires a tokio runtime for async MTProto operations.
+- **WorkManager** handles periodic background tasks with battery-aware scheduling.

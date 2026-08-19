@@ -5,8 +5,6 @@
 *.apk
 *.aab
 *.idsig
-*.png
-*.jpg
 
 # JNI libs (built by cargo-ndk)
 app_flutter/android/app/src/main/jniLibs/
@@ -51,8 +49,13 @@ Thumbs.db
 *.keystore
 *.jks
 
-# Internal documents — not for public repo
+# Internal documents (not for public repo)
 PRD.md
 **/PRD*.md
 docs/TELEPHOTO_RE.md
+docs/PRD_COVERAGE.md
 app_flutter/README.md
+
+# Test screenshots (not part of source)
+*.png
+*.jpg
