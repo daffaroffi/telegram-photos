@@ -27,15 +27,36 @@ impl TelegramHandle {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Check if there is an existing authorized session (cold start).
-pub async fn check_connection(handle: TelegramHandle, _app_data_dir: String) -> bool {
-    let state = handle.inner.clone();
-    let guard = state.client.lock().await;
-    guard.is_some()
+/// Tries to restore from DB if no in-memory client exists.
+pub async fn check_connection(handle: &TelegramHandle, app_data_dir: String) -> bool {
+    let state = &handle.inner;
+    // Quick check: is the client already initialized and authorized?
+    {
+        let guard = state.client.lock().await;
+        if let Some(client) = guard.as_ref() {
+            return client.is_authorized().await.unwrap_or(false);
+        }
+    }
+    // Cold start: try to restore session from DB + session file.
+    let dir = std::path::PathBuf::from(&app_data_dir);
+    if dir.exists() {
+        let db = crate::api::db::db();
+        if let Ok(db) = db {
+            match telegram::check_connection(state, db, &dir).await {
+                Ok(authorized) => authorized,
+                Err(_) => false,
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    }
 }
 
 /// Request OTP code for phone login.
 pub async fn auth_request_code(
-    handle: TelegramHandle,
+    handle: &TelegramHandle,
     phone: String,
     api_id: i32,
     api_hash: String,
@@ -47,7 +68,7 @@ pub async fn auth_request_code(
 
 /// Submit OTP code to sign in.
 pub async fn auth_sign_in(
-    handle: TelegramHandle,
+    handle: &TelegramHandle,
     code: String,
 ) -> Result<AuthCodeResult, String> {
     telegram::auth_sign_in(&handle.inner, &code).await
@@ -55,7 +76,7 @@ pub async fn auth_sign_in(
 
 /// Submit 2FA password.
 pub async fn auth_check_password(
-    handle: TelegramHandle,
+    handle: &TelegramHandle,
     password: String,
 ) -> Result<AuthCodeResult, String> {
     telegram::auth_check_password(&handle.inner, &password).await
@@ -63,7 +84,7 @@ pub async fn auth_check_password(
 
 /// Start QR code login flow. Returns `tg://login?token=...` URL.
 pub async fn auth_qr_login(
-    handle: TelegramHandle,
+    handle: &TelegramHandle,
     api_id: i32,
     api_hash: String,
     app_data_dir: String,
@@ -73,19 +94,19 @@ pub async fn auth_qr_login(
 }
 
 /// Poll QR login status. Returns status: "authorized" or "waiting".
-pub async fn auth_qr_poll(handle: TelegramHandle) -> Result<AuthCodeResult, String> {
+pub async fn auth_qr_poll(handle: &TelegramHandle) -> Result<AuthCodeResult, String> {
     telegram::auth_qr_poll(&handle.inner).await
 }
 
 /// Get current logged-in user info.
 pub async fn get_me(
-    handle: TelegramHandle,
+    handle: &TelegramHandle,
 ) -> Result<Option<telegram_photos_core::models::TelegramUser>, String> {
     telegram::get_me(&handle.inner).await
 }
 
 /// Logout and delete session.
-pub async fn logout(handle: TelegramHandle, app_data_dir: String) -> Result<bool, String> {
+pub async fn logout(handle: &TelegramHandle, app_data_dir: String) -> Result<bool, String> {
     let dir = std::path::PathBuf::from(&app_data_dir);
     telegram::logout(&handle.inner, &dir).await
 }

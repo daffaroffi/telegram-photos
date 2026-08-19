@@ -24,7 +24,7 @@ pub fn init_core(db_path: String) -> Result<(), String> {
     DB.set(db).map_err(|_| "core already initialized".to_string())
 }
 
-fn db() -> Result<&'static Db, String> {
+pub(crate) fn db() -> Result<&'static Db, String> {
     DB.get().ok_or_else(|| "core not initialized — call init_core first".to_string())
 }
 

@@ -55,7 +55,7 @@ pub async fn get_or_create_vault(
             let chat = u
                 .chats
                 .first()
-                .ok_or("Tidak ada channel dalam respons.")?;
+                .ok_or("No channel in response.")?;
             match chat {
                 tl::enums::Chat::Channel(c) => (
                     c.id,
@@ -65,7 +65,7 @@ pub async fn get_or_create_vault(
                 _ => return Err("Bukan channel.".into()),
             }
         }
-        _ => return Err("Respons tidak dikenali.".into()),
+        _ => return Err("Unrecognized response.".into()),
     };
 
     if let Some(peer) = peer {
@@ -86,7 +86,7 @@ pub async fn peer_from_vault(
         *state.vault_peer.lock().unwrap() = Some(peer.clone());
         return Ok(peer);
     }
-    Err("Vault tidak ditemukan. Jalankan backup sekali.".into())
+    Err("Vault not found. Run backup once.".into())
 }
 
 async fn find_existing_vault(

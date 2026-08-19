@@ -7,7 +7,7 @@ import 'src/rust/api/db.dart' as core;
 import 'src/rust/api/telegram.dart' as tg;
 import 'src/rust/frb_generated.dart';
 
-/// Global Telegram handle — created once at startup, shared across screens.
+/// Global Telegram handle -- created once at startup, shared across screens.
 late final tg.TelegramHandle telegramHandle;
 
 Future<void> main() async {
@@ -21,11 +21,12 @@ Future<void> main() async {
   // Create the Telegram state handle (lives for the app lifetime).
   telegramHandle = await tg.TelegramHandle.newInstance();
 
-  runApp(const TelegramPhotosApp());
+  runApp(TelegramPhotosApp(appDataDir: dir.path));
 }
 
 class TelegramPhotosApp extends StatefulWidget {
-  const TelegramPhotosApp({super.key});
+  final String appDataDir;
+  const TelegramPhotosApp({super.key, required this.appDataDir});
 
   @override
   State<TelegramPhotosApp> createState() => _TelegramPhotosAppState();
@@ -44,7 +45,7 @@ class _TelegramPhotosAppState extends State<TelegramPhotosApp> {
   Future<void> _checkAuth() async {
     final connected = await tg.checkConnection(
       handle: telegramHandle,
-      appDataDir: '',
+      appDataDir: widget.appDataDir,
     );
     if (mounted) {
       setState(() {
@@ -69,7 +70,7 @@ class _TelegramPhotosAppState extends State<TelegramPhotosApp> {
             )
           : _authorized
               ? const AppShell()
-              : const OnboardingScreen(),
+              : OnboardingScreen(onAuthenticated: _checkAuth),
     );
   }
 }

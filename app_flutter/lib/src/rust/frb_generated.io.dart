@@ -32,6 +32,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  TelegramHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
+    dynamic raw,
+  );
+
+  @protected
   Map<String, bool> dco_decode_Map_String_bool_None(dynamic raw);
 
   @protected
@@ -166,6 +172,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   TelegramHandle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  TelegramHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
     SseDeserializer deserializer,
   );
 
@@ -314,6 +326,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
+    TelegramHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTelegramHandle(
     TelegramHandle self,
     SseSerializer serializer,
   );

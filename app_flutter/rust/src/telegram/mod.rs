@@ -128,14 +128,14 @@ fn normalize_phone_number(input: &str) -> Result<String, String> {
         } else if ch.is_whitespace() || matches!(ch, '-' | '(' | ')' | '.') {
             continue;
         } else {
-            return Err("Masukkan nomor dalam format internasional, contoh +6281234567890.".into());
+            return Err("Use international format, e.g. +6281234567890".into());
         }
     }
     let digits = normalized
         .strip_prefix('+')
-        .ok_or_else(|| "Gunakan format internasional dengan kode negara (+62...).".to_string())?;
+        .ok_or_else(|| "Use international format with country code (+62...)".to_string())?;
     if !(7..=15).contains(&digits.len()) || digits.starts_with('0') {
-        return Err("Nomor telepon tidak valid.".to_string());
+        return Err("Invalid phone number".to_string());
     }
     Ok(normalized)
 }
@@ -143,16 +143,18 @@ fn normalize_phone_number(input: &str) -> Result<String, String> {
 fn map_auth_error(e: impl std::fmt::Display) -> String {
     let raw = e.to_string();
     let mappings = [
-        ("API_ID_INVALID", "API ID / API Hash tidak valid."),
-        ("API_ID_PUBLISHED_FLOOD", "API ID telah dinonaktifkan Telegram."),
-        ("PHONE_NUMBER_INVALID", "Nomor telepon ditolak Telegram."),
-        ("PHONE_NUMBER_BANNED", "Nomor telepon diblokir Telegram."),
-        ("PHONE_NUMBER_FLOOD", "Terlalu banyak permintaan kode. Tunggu."),
-        ("PHONE_PASSWORD_FLOOD", "Terlalu banyak percobaan login."),
-        ("PHONE_CODE_INVALID", "Kode verifikasi salah."),
-        ("PHONE_CODE_EXPIRED", "Kode verifikasi kedaluwarsa."),
-        ("SESSION_PASSWORD_NEEDED", "Akun memerlukan 2FA."),
-        ("FLOOD_WAIT", "Telegram meminta jeda (FloodWait)."),
+        ("AUTH_RESTART", "Session expired. Retrying..."),
+        ("API_ID_INVALID", "Invalid API ID or API Hash"),
+        ("API_ID_PUBLISHED_FLOOD", "API ID has been disabled by Telegram"),
+        ("PHONE_NUMBER_INVALID", "Phone number rejected by Telegram"),
+        ("PHONE_NUMBER_BANNED", "Phone number is banned"),
+        ("PHONE_NUMBER_FLOOD", "Too many code requests. Please wait"),
+        ("PHONE_PASSWORD_FLOOD", "Too many login attempts"),
+        ("PHONE_CODE_INVALID", "Invalid verification code"),
+        ("PHONE_CODE_EXPIRED", "Verification code expired"),
+        ("SESSION_PASSWORD_NEEDED", "Account requires 2FA password"),
+        ("FLOOD_WAIT", "Telegram requests a delay (FloodWait)"),
+        ("PHONE_MIGRATE", "Phone number registered on different server. Reconnecting..."),
     ];
     for (needle, message) in mappings {
         if raw.contains(needle) {
@@ -170,21 +172,61 @@ pub async fn auth_request_code(
     app_data_dir: &std::path::Path,
 ) -> Result<AuthCodeResult, String> {
     if api_hash.trim().is_empty() {
-        return Err("API Hash tidak boleh kosong.".into());
+        return Err("API Hash must not be empty".into());
     }
     let phone = normalize_phone_number(phone)?;
     *state.login_token.lock().await = None;
     *state.password_token.lock().await = None;
     *state.api_id.lock().await = Some(api_id);
 
+    // Save api_id and api_hash to file for session restore on cold start.
+    let creds_path = app_data_dir.join(".telegram_creds");
+    let _ = std::fs::write(
+        &creds_path,
+        format!("{}\n{}", api_id, api_hash),
+    );
+
     let client = ensure_client_initialized(state, api_id, app_data_dir).await?;
-    let token = timeout(
+    let token = match timeout(
         Duration::from_secs(30),
         client.request_login_code(&phone, api_hash),
     )
     .await
-    .map_err(|_| "Telegram tidak merespons. Periksa koneksi.")?
-    .map_err(|e| map_auth_error(e))?;
+    {
+        Err(_) => return Err("Telegram did not respond. Check your connection.".into()),
+        Ok(Err(e)) if e.to_string().contains("AUTH_RESTART") => {
+            // Stale session: shut down client, delete session file, re-init.
+            log::warn!("AUTH_RESTART detected — deleting stale session and retrying");
+            {
+                let mut guard = state.client.lock().await;
+                *guard = None;
+            }
+            {
+                let mut guard = state.session.lock().await;
+                *guard = None;
+            }
+            {
+                let mut guard = state.runner_shutdown.lock().unwrap();
+                if let Some(tx) = guard.take() {
+                    let _ = tx.send(());
+                }
+            }
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(app_data_dir.join(format!("telegram.session{}", suffix)));
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let client2 = ensure_client_initialized(state, api_id, app_data_dir).await?;
+            timeout(
+                Duration::from_secs(30),
+                client2.request_login_code(&phone, api_hash),
+            )
+            .await
+            .map_err(|_| "Telegram did not respond. Check your connection.".to_string())?
+            .map_err(|e| map_auth_error(e))?
+        }
+        Ok(Err(e)) => return Err(map_auth_error(e)),
+        Ok(Ok(token)) => token,
+    };
 
     *state.login_token.lock().await = Some(token);
     Ok(AuthCodeResult {
@@ -201,7 +243,7 @@ pub async fn auth_sign_in(
 ) -> Result<AuthCodeResult, String> {
     let code = code.trim().to_string();
     if code.is_empty() {
-        return Err("Masukkan kode verifikasi.".into());
+        return Err("Enter verification code".into());
     }
     let client = current_client(state).await?;
     let token = state
@@ -209,10 +251,10 @@ pub async fn auth_sign_in(
         .lock()
         .await
         .take()
-        .ok_or("Tidak ada sesi login aktif.")?;
+        .ok_or("No active login session")?;
 
     match timeout(Duration::from_secs(30), client.sign_in(&token, &code)).await {
-        Err(_) => Err("Telegram tidak merespons.".into()),
+        Err(_) => Err("Telegram did not respond".into()),
         Ok(Ok(_)) => Ok(AuthCodeResult {
             status: "authorized".into(),
             code_length: None,
@@ -229,9 +271,9 @@ pub async fn auth_sign_in(
             })
         }
         Ok(Err(grammers_client::SignInError::SignUpRequired { .. })) => {
-            Err("Nomor harus terdaftar di Telegram resmi.".into())
+            Err("Phone number must be registered on official Telegram".into())
         }
-        Ok(Err(grammers_client::SignInError::InvalidCode)) => Err("Kode salah.".into()),
+        Ok(Err(grammers_client::SignInError::InvalidCode)) => Err("Invalid code".into()),
         Ok(Err(grammers_client::SignInError::InvalidPassword)) => Err("Kata sandi 2FA salah.".into()),
         Ok(Err(grammers_client::SignInError::Other(e))) => Err(map_auth_error(e)),
     }
@@ -247,9 +289,9 @@ pub async fn auth_check_password(
         .lock()
         .await
         .take()
-        .ok_or("Tidak ada sesi 2FA aktif.")?;
+        .ok_or("No active 2FA session")?;
     match timeout(Duration::from_secs(30), client.check_password(pw, password)).await {
-        Err(_) => Err("Telegram tidak merespons.".into()),
+        Err(_) => Err("Telegram did not respond".into()),
         Ok(Ok(_)) => Ok(AuthCodeResult {
             status: "authorized".into(),
             code_length: None,
@@ -267,7 +309,7 @@ pub async fn auth_qr_login(
     app_data_dir: &std::path::Path,
 ) -> Result<String, String> {
     if api_hash.trim().is_empty() {
-        return Err("API Hash tidak boleh kosong.".into());
+        return Err("API Hash must not be empty".into());
     }
     *state.api_id.lock().await = Some(api_id);
     *state.login_token.lock().await = None;
@@ -283,7 +325,7 @@ pub async fn auth_qr_login(
         }),
     )
     .await
-    .map_err(|_| "Telegram tidak merespons saat membuat token QR.")?
+    .map_err(|_| "Telegram did not respond while creating QR token")?
     .map_err(|e| map_auth_error(e))?;
 
     match result {
@@ -363,16 +405,25 @@ pub async fn check_connection(
     if let Some(client) = state.client.lock().await.as_ref().cloned() {
         return Ok(client.get_me().await.is_ok());
     }
-    let settings = db.get_settings().map_err(|e| e.to_string())?;
-    let Some(api_id_str) = settings.telegram_api_id else {
-        return Ok(false);
-    };
-    let Ok(api_id) = api_id_str.trim().parse::<i32>() else {
-        return Ok(false);
-    };
-    match ensure_client_initialized(state, api_id, app_data_dir).await {
-        Ok(client) => Ok(client.is_authorized().await.unwrap_or(false)),
-        Err(_) => Ok(false),
+    // Try to restore from saved credentials file.
+    let creds_path = app_data_dir.join(".telegram_creds");
+    if let Ok(contents) = std::fs::read_to_string(&creds_path) {
+        let lines: Vec<&str> = contents.lines().collect();
+        if lines.len() >= 2 {
+            if let Ok(api_id) = lines[0].trim().parse::<i32>() {
+                let api_hash = lines[1].trim();
+                match ensure_client_initialized(state, api_id, app_data_dir).await {
+                    Ok(client) => Ok(client.is_authorized().await.unwrap_or(false)),
+                    Err(_) => Ok(false),
+                }
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(false)
+        }
+    } else {
+        Ok(false)
     }
 }
 
