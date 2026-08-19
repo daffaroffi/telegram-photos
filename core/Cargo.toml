@@ -1,6 +1,6 @@
 [package]
 name = "telegram_photos_core"
-version = "0.3.2"
+version = "0.3.3"
 description = "Telegram Photos - Rust core (MTProto, crypto, SQLite, media pipeline) shared between the Tauri app and the Flutter UI"
 edition = "2021"
 
