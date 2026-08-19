@@ -5,6 +5,11 @@
 *.apk
 *.aab
 *.idsig
+*.png
+*.jpg
+
+# JNI libs (built by cargo-ndk)
+app_flutter/android/app/src/main/jniLibs/
 
 # Rust build artifacts
 core/target/

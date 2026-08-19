@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../rust/api/telegram.dart' as tg;
-import '../rust/api/mirror.dart' show AuthCodeResult;
 
 /// Global Telegram handle from main.dart.
 import '../../main.dart' show telegramHandle;

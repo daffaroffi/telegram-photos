@@ -16,8 +16,8 @@ pub use telegram_photos_core::models::{
 #[frb(mirror(AuthCodeResult))]
 pub struct _AuthCodeResult {
     pub status: String,
-    pub code_length: Option<i32>,
-    pub resend_after_seconds: Option<i32>,
+    pub code_length: Option<u32>,
+    pub resend_after_seconds: Option<u64>,
     pub delivery: Option<String>,
 }
 

@@ -1,6 +1,5 @@
 //! FRB bridge for Telegram MTProto functions.
 
-use flutter_rust_bridge::frb;
 use telegram_photos_core::models::AuthCodeResult;
 
 use crate::telegram;
@@ -28,13 +27,10 @@ impl TelegramHandle {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Check if there is an existing authorized session (cold start).
-pub fn check_connection(handle: &TelegramHandle, _app_data_dir: String) -> bool {
+pub async fn check_connection(handle: TelegramHandle, _app_data_dir: String) -> bool {
     let state = handle.inner.clone();
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            state.client.lock().await.is_some()
-        })
-    })
+    let guard = state.client.lock().await;
+    guard.is_some()
 }
 
 /// Request OTP code for phone login.
