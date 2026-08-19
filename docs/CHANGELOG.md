@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-19
+
+### Added
+- XChaCha20-Poly1305 encryption for vault files (client-side, zero-knowledge).
+- Argon2id key derivation from user passphrase.
+- FRB bridge for crypto: `vaultSetup`, `vaultUnlock`, `vaultLock`, `deriveKey`, `encryptFile`, `decryptFile`.
+- Encryption setup dialog in Settings: passphrase input with show/hide toggle, confirm, strength indicator.
+
+### Fixed
+- AUTH_RESTART: robust retry loop (up to 3 attempts, exponential backoff 500ms/1000ms).
+- Extracted `reset_client_state` helper for clean session cleanup on auth errors.
+- Remaining Indonesian error messages translated to English.
+
 ## [0.3.1] - 2026-08-19
 
 ### Fixed
