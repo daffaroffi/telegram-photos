@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -568471305;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 615593259;
 
 // Section: executor
 
@@ -481,7 +481,7 @@ fn wire__crate__api__telegram__check_connection_impl(
             let api_handle = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
             >>::sse_decode(&mut deserializer);
-            let api__app_data_dir = <String>::sse_decode(&mut deserializer);
+            let api_app_data_dir = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, ()>(
@@ -508,7 +508,7 @@ fn wire__crate__api__telegram__check_connection_impl(
                         let output_ok = Result::<_, ()>::Ok(
                             crate::api::telegram::check_connection(
                                 &*api_handle_guard,
-                                api__app_data_dir,
+                                api_app_data_dir,
                             )
                             .await,
                         )?;
@@ -1303,6 +1303,105 @@ fn wire__crate__api__db__search_by_hashtag_impl(
         },
     )
 }
+fn wire__crate__api__db__set_media_status_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "set_media_status",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_status = <i32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, String>((move || {
+                let output_ok = crate::api::db::set_media_status(api_id, api_status)?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__telegram__upload_photo_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "upload_photo",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<TelegramHandle>,
+            >>::sse_decode(&mut deserializer);
+            let api_file_path = <String>::sse_decode(&mut deserializer);
+            let api_file_name = <String>::sse_decode(&mut deserializer);
+            let api_mime_type = <String>::sse_decode(&mut deserializer);
+            let api_is_video = <bool>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, String>(
+                    (move || async move {
+                        let mut api_handle_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_handle,
+                                    0,
+                                    false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => {
+                                    api_handle_guard =
+                                        Some(api_handle.lockable_decode_async_ref().await)
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_handle_guard = api_handle_guard.unwrap();
+                        let output_ok = crate::api::telegram::upload_photo(
+                            &*api_handle_guard,
+                            api_file_path,
+                            api_file_name,
+                            api_mime_type,
+                            api_is_video,
+                        )
+                        .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__db__uploads_summary_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -2057,6 +2156,7 @@ fn pde_ffi_dispatcher_primary_impl(
         14 => wire__crate__api__db__get_media_impl(port, ptr, rust_vec_len, data_len),
         19 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
         27 => wire__crate__api__telegram__logout_impl(port, ptr, rust_vec_len, data_len),
+        35 => wire__crate__api__telegram__upload_photo_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2091,7 +2191,8 @@ fn pde_ffi_dispatcher_sync_impl(
         31 => wire__crate__api__db__save_settings_impl(ptr, rust_vec_len, data_len),
         32 => wire__crate__api__db__save_thumbnail_paths_impl(ptr, rust_vec_len, data_len),
         33 => wire__crate__api__db__search_by_hashtag_impl(ptr, rust_vec_len, data_len),
-        34 => wire__crate__api__db__uploads_summary_impl(ptr, rust_vec_len, data_len),
+        34 => wire__crate__api__db__set_media_status_impl(ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__db__uploads_summary_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

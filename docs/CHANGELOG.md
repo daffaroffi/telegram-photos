@@ -109,3 +109,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vault: TelegramPhotos_Vault channel shown (0 files, 0 KB).
 - Display: Grid columns setting.
 - Final APK sizes: armeabi-v7a 17.6MB, arm64-v8a 21.3MB, x86_64 22.9MB.
+
+## [0.4.0] - 2026-08-19
+
+### Added
+- Single photo upload: tap photo -> "Upload to vault" button -> encrypt -> upload to Telegram vault channel.
+- `readFileToTemp` Kotlin bridge: reads files from content URI via ContentResolver.
+- `uploadPhoto` FRB bridge: creates vault channel if needed, uploads file via 512KB chunks.
+- `setMediaStatus` FRB bridge: update sync status after upload.
+- Media ID format fix: convert `media_123` to `media/123` for valid content URI.
+
+### Verified
+- Upload flow E2E: content URI -> temp file -> upload.saveFilePart (248KB) -> messages.sendMedia -> updates confirmation.
+- Vault channel auto-created (TelegramPhotos_Vault).
