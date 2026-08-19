@@ -122,3 +122,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Verified
 - Upload flow E2E: content URI -> temp file -> upload.saveFilePart (248KB) -> messages.sendMedia -> updates confirmation.
 - Vault channel auto-created (TelegramPhotos_Vault).
+
+## [0.4.1] - 2026-08-19
+
+### Added
+- BackupWorker: WorkManager-based periodic background backup (every 15 min).
+- Notification channel "Photo Backup" with progress/completion/failure notifications.
+- `startBackup` MethodChannel: queue items for background upload.
+- `cancelBackup` MethodChannel: cancel all pending backup work.
+- `BackupService` Dart bridge for triggering background backup.
+- BackupWorker polls for pending items, shows progress notification, waits for result.
+
+### Changed
+- WorkManager + core-ktx dependencies added to Android build.

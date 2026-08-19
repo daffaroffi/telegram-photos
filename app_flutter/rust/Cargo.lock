@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "telegram_photos_core"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "argon2",
  "base64",

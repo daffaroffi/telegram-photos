@@ -53,8 +53,41 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 if (outPath != null) result.success(outPath)
                 else result.error("READ_FAILED", "Failed to read file", null)
             }
+            "startBackup" -> {
+                @Suppress("UNCHECKED_CAST")
+                val items = call.argument<List<Map<String, Any>>>("items") ?: emptyList()
+                startBackup(items)
+                result.success(true)
+            }
+            "cancelBackup" -> {
+                BackupWorker.cancelAll(appContext ?: return result.error("NO_CONTEXT", "No context", null))
+                result.success(true)
+            }
+            "getAppDataDir" -> {
+                val ctx = appContext ?: return result.error("NO_CONTEXT", "No context", null)
+                result.success(ctx.filesDir.absolutePath)
+            }
             else -> result.notImplemented()
         }
+    }
+
+    private fun startBackup(items: List<Map<String, Any>>) {
+        val ctx = appContext ?: return
+        // Write pending items to file for BackupWorker to pick up
+        val pendingFile = java.io.File(ctx.filesDir, "backup_pending.json")
+        val jsonArray = org.json.JSONArray()
+        for (item in items) {
+            val obj = org.json.JSONObject()
+            obj.put("id", item["id"] ?: "")
+            obj.put("contentUri", item["contentUri"] ?: "")
+            obj.put("fileName", item["fileName"] ?: "")
+            obj.put("mimeType", item["mimeType"] ?: "image/jpeg")
+            obj.put("isVideo", item["isVideo"] ?: false)
+            jsonArray.put(obj)
+        }
+        pendingFile.writeText(jsonArray.toString())
+        // Enqueue one-time work
+        BackupWorker.enqueueOneTime(ctx)
     }
 
     /**
