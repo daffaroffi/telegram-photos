@@ -110,9 +110,16 @@ impl ThumbPipeline {
 
     /// Process next job (called by worker loop).
     pub async fn process_next(&self) -> Option<ThumbResult> {
+        // Pop the job out of the queue under the lock so two concurrent
+        // workers cannot both claim it. A previous peek-then-remove
+        // pattern let both see the same job, doubling ffmpeg runs.
         let job = {
             let mut queue = self.queue.lock().await;
-            queue.first().cloned()
+            if queue.is_empty() {
+                None
+            } else {
+                Some(queue.remove(0))
+            }
         };
 
         let job = job?;
@@ -154,17 +161,6 @@ impl ThumbPipeline {
             }
         };
 
-        // Remove processed job
-        {
-            let mut queue = self.queue.lock().await;
-            if let Some(pos) = queue
-                .iter()
-                .position(|j| j.media_id == result.media_id && j.tier == result.tier)
-            {
-                queue.remove(pos);
-            }
-        }
-
         let _ = self.result_tx.send(result.clone());
         Some(result)
     }
@@ -189,7 +185,10 @@ fn generate_thumbnail(source: &str, output: &str, target_px: u32) -> Result<(), 
         .args([
             "-y",
             "-i", source,
-            "-vf", &format!("scale='min({tx}px,iw)':min'({tx}px,ih)':force_original_aspect_ratio=decrease", tx = target_px),
+            "-vf", &format!(
+                "scale='min({tx}px,iw)':'min({tx}px,ih)':force_original_aspect_ratio=decrease",
+                tx = target_px
+            ),
             "-frames:v", "1",
             "-q:v", "3",
             output,
