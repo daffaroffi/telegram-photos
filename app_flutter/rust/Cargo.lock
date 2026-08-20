@@ -1468,6 +1468,7 @@ dependencies = [
  "md5",
  "rand 0.9.5",
  "serde_json",
+ "sha2",
  "telegram_photos_core",
  "tokio",
 ]

@@ -21,6 +21,7 @@ grammers-tl-types = { git = "https://github.com/Lonami/grammers", rev = "d07f96f
 base64 = "0.22"
 rand = "0.9"
 md5 = "0.8"
+sha2 = "0.10"
 
 # --- Async ---
 tokio = { version = "1", features = ["full"] }

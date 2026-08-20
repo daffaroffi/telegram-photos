@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../src/rust/api/db.dart' as core;
-import '../../src/rust/api/mirror.dart';
+import '../rust/api/db.dart' as core;
+import '../rust/api/mirror.dart';
+import 'collections_screen.dart';
+import 'import_screen.dart';
 
-/// Tab Library (PRD Part 2 S3.3): Collections, Folders, Favorites, Memories,
-/// Trash. Collections are backed by the real DB; the rest are P1 follow-ups.
+/// Tab Library (PRD Part 2 S3.3): collections, folders, favorites, memories, trash.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -14,245 +15,178 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  List<Collection> _collections = [];
+  late List<Collection> _collections;
 
   @override
   void initState() {
     super.initState();
-    _reload();
+    _collections = core.listCollections();
   }
 
-  void _reload() {
-    setState(() => _collections = core.listCollections());
-  }
-
-  Future<void> _createCollection() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New collection'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Collection name'),
-          onSubmitted: (v) => Navigator.pop(context, v),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-    if (name != null && name.trim().isNotEmpty) {
-      core.createCollection(name: name.trim());
-      _reload();
-    }
+  void _refresh() {
+    setState(() {
+      _collections = core.listCollections();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Library'),
         actions: [
           IconButton(
-            tooltip: 'New collection',
             icon: const Icon(LucideIcons.plus),
-            onPressed: _createCollection,
+            tooltip: 'Import photos',
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ImportScreen()),
+              );
+              _refresh();
+            },
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
+          // -- Collections Section --
           _SectionHeader(
-            icon: LucideIcons.layers,
+            icon: LucideIcons.folderOpen,
             title: 'Collections',
-            trailing: Text('${_collections.length}',
-                style: Theme.of(context).textTheme.bodySmall),
+            trailing: TextButton(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CollectionsScreen()),
+                );
+                _refresh();
+              },
+              child: const Text('See all'),
+            ),
           ),
           if (_collections.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Column(
-                children: [
-                  Icon(
-                    LucideIcons.layers,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No collections yet',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tap + to create your first collection.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(LucideIcons.folderPlus, size: 48, color: cs.outline),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No collections yet',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create albums to organize your photos',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
-            ..._collections.map((c) => _CollectionTile(
-                  collection: c,
-                  onTap: () => _openCollection(c),
-                )),
-          const Divider(height: 24),
-          _SectionHeader(
-            icon: LucideIcons.clock,
-            title: 'Coming soon',
+            ..._collections.take(4).map(
+                  (col) => ListTile(
+                    leading: Icon(LucideIcons.folder, color: cs.primary),
+                    title: Text(col.name),
+                    trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                    onTap: () {
+                      // TODO: Open collection detail
+                    },
+                  ),
+                ),
+
+          const Divider(),
+
+          // -- Favorites Section --
+          _SectionHeader(icon: LucideIcons.star, title: 'Favorites'),
+          ListTile(
+            leading: Icon(LucideIcons.star, color: Colors.amber),
+            title: const Text('Favorites'),
+            subtitle: const Text('Photos you starred'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open favorites
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Favorites coming in v0.8')),
+              );
+            },
           ),
-          const _PlaceholderTile(
-            icon: LucideIcons.heart,
-            title: 'Favorites',
-            subtitle: 'P1',
+
+          const Divider(),
+
+          // -- Memories Section --
+          _SectionHeader(icon: LucideIcons.clock, title: 'Memories'),
+          ListTile(
+            leading: Icon(LucideIcons.history, color: cs.primary),
+            title: const Text('On this day'),
+            subtitle: const Text('Photos from previous years'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open memories
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Memories coming in v0.8')),
+              );
+            },
           ),
-          const _PlaceholderTile(
-            icon: LucideIcons.clock,
-            title: 'Memories',
-            subtitle: 'P1',
+
+          const Divider(),
+
+          // -- Device Folders Section --
+          _SectionHeader(icon: LucideIcons.smartphone, title: 'Device folders'),
+          ListTile(
+            leading: Icon(LucideIcons.camera, color: cs.onSurfaceVariant),
+            title: const Text('Camera'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open camera folder
+            },
           ),
-          const _PlaceholderTile(
-            icon: LucideIcons.trash2,
-            title: 'Trash',
-            subtitle: 'P1',
+          ListTile(
+            leading: Icon(LucideIcons.messageCircle, color: cs.onSurfaceVariant),
+            title: const Text('WhatsApp'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open WhatsApp folder
+            },
           ),
-          const _PlaceholderTile(
-            icon: LucideIcons.folder,
-            title: 'Device folders',
-            subtitle: 'P1',
+          ListTile(
+            leading: Icon(LucideIcons.download, color: cs.onSurfaceVariant),
+            title: const Text('Downloads'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open downloads folder
+            },
+          ),
+
+          const Divider(),
+
+          // -- Trash Section --
+          _SectionHeader(icon: LucideIcons.trash2, title: 'Trash'),
+          ListTile(
+            leading: Icon(LucideIcons.trash2, color: cs.error),
+            title: const Text('Trash'),
+            subtitle: const Text('Photos kept for 30 days'),
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () {
+              // TODO: Open trash
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Trash coming in v0.8')),
+              );
+            },
           ),
         ],
       ),
     );
   }
-
-  void _openCollection(Collection c) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _CollectionScreen(collection: c),
-      ),
-    );
-  }
 }
-
-// ─── Collection Screen ────────────────────────────────────────────────────────
-
-class _CollectionScreen extends StatefulWidget {
-  const _CollectionScreen({required this.collection});
-
-  final Collection collection;
-
-  @override
-  State<_CollectionScreen> createState() => _CollectionScreenState();
-}
-
-class _CollectionScreenState extends State<_CollectionScreen> {
-  late final List<MediaItem> _items;
-
-  @override
-  void initState() {
-    super.initState();
-    _items = core.listCollectionItems(collectionId: widget.collection.id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.collection.name)),
-      body: _items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    LucideIcons.image,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Collection is empty',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Add photos from the Photos tab.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(2),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 2,
-                crossAxisSpacing: 2,
-              ),
-              itemCount: _items.length,
-              itemBuilder: (context, i) {
-                final m = _items[i];
-                return Container(
-                  color: Colors.primaries[
-                          m.id.hashCode.abs() % Colors.primaries.length]
-                      .shade200,
-                  child: Center(
-                    child: Icon(
-                      m.mediaType == 'video'
-                          ? LucideIcons.video
-                          : LucideIcons.image,
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-}
-
-// ─── Collection Tile ──────────────────────────────────────────────────────────
-
-class _CollectionTile extends StatelessWidget {
-  const _CollectionTile({required this.collection, required this.onTap});
-
-  final Collection collection;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        child: Icon(
-          collection.isCloud ? LucideIcons.cloud : LucideIcons.image,
-        ),
-      ),
-      title: Text(collection.name),
-      subtitle: Text(
-        '${collection.itemCount} item${collection.itemCount == 1 ? '' : 's'}'
-        '${collection.isCloud ? ' . cloud' : ''}',
-      ),
-      trailing: const Icon(LucideIcons.chevronRight),
-      onTap: onTap,
-    );
-  }
-}
-
-// ─── Section Header ───────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
@@ -267,41 +201,24 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          Icon(icon, size: 16, color: cs.primary),
           const SizedBox(width: 8),
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
           const Spacer(),
-          ?trailing,
+          if (trailing != null) trailing!,
         ],
       ),
-    );
-  }
-}
-
-// ─── Placeholder Tile ─────────────────────────────────────────────────────────
-
-class _PlaceholderTile extends StatelessWidget {
-  const _PlaceholderTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      enabled: false,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle),
     );
   }
 }
