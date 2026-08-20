@@ -13,6 +13,8 @@ import '../../main.dart' show telegramHandle;
 import '../../main.dart' show appDataDir;
 import 'upload_screen.dart';
 import 'onboarding_screen.dart';
+import 'free_up_space_screen.dart';
+import 'backup_restore_screen.dart';
 
 /// Minimalist Settings screen (PRD Part 2 S3.4).
 ///
@@ -244,6 +246,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : 'No vault yet',
                 onTap: () => _showVaultInfo(context),
               ),
+              _ActionTile(
+                icon: LucideIcons.save,
+                title: 'Database backup',
+                subtitle: 'Export or restore your encrypted vault index',
+                onTap: _openDatabaseBackup,
+              ),
             ],
           ),
 
@@ -358,14 +366,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _freeUpSpace() async {
-    // PRD Part 2 S4.4: Free Up Space with hash verification
-    final backedUp = core.listPendingBackup(limit: 99999);
-    // TODO: actual free up space logic (hash verify + delete local)
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Free up space coming in v0.8')),
-      );
-    }
+    // The screen itself is a stub today (see free_up_space_screen.dart),
+    // but the route is wired so the user can reach it from Settings.
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const FreeUpSpaceScreen()),
+    );
+  }
+
+  Future<void> _openDatabaseBackup() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const BackupRestoreScreen()),
+    );
   }
 
   void _showVaultInfo(BuildContext context) {

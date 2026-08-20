@@ -12,6 +12,7 @@ import '../../src/rust/api/telegram.dart' as tg;
 import '../widgets/backup_banner.dart';
 import '../widgets/status_badge.dart';
 import 'upload_screen.dart';
+import 'captions_screen.dart';
 
 /// Tab Photos (PRD Part 2 S3.1): combined local+cloud timeline in one
 /// virtualized grid, status badge per photo, backup banner on progress.
@@ -67,6 +68,22 @@ class _PhotosScreenState extends State<PhotosScreen> {
       _selectionMode = true;
       _selectedIds.add(id);
     });
+  }
+
+  Future<void> _editCaptionForSelected() async {
+    if (_selectedIds.length != 1) return;
+    final id = _selectedIds.first;
+    final item = _items.firstWhere(
+      (m) => m.id == id,
+      orElse: () => _items.first,
+    );
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: false,
+      builder: (_) => CaptionsScreen(item: item),
+    );
+    if (mounted) _exitSelectionMode();
   }
 
   void _exitSelectionMode() {
@@ -169,6 +186,12 @@ class _PhotosScreenState extends State<PhotosScreen> {
                     });
                   },
                 ),
+                if (_selectedIds.length == 1)
+                  IconButton(
+                    icon: const Icon(LucideIcons.penLine),
+                    tooltip: 'Edit caption',
+                    onPressed: _editCaptionForSelected,
+                  ),
                 IconButton(
                   icon: const Icon(LucideIcons.upload),
                   tooltip: 'Upload selected',
