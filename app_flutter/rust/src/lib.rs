@@ -1,6 +1,10 @@
 pub mod api;
 pub mod backup;
 pub mod telegram;
+pub mod task_hub;
+pub mod upload_manager;
+pub mod hash_worker;
+pub mod thumb_pipeline;
 mod frb_generated;
 
 use std::sync::OnceLock;
