@@ -10,18 +10,21 @@ import 'src/rust/frb_generated.dart';
 /// Global Telegram handle -- created once at startup, shared across screens.
 late final tg.TelegramHandle telegramHandle;
 
+/// App data directory (from path_provider). Shared across screens.
+late final String appDataDir;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
 
   // Open the real SQLite database through the Rust core.
-  final dir = await getApplicationSupportDirectory();
-  core.initCore(dbPath: '${dir.path}/telegram_photos.db');
+  appDataDir = (await getApplicationSupportDirectory()).path;
+  core.initCore(dbPath: '$appDataDir/telegram_photos.db');
 
   // Create the Telegram state handle (lives for the app lifetime).
   telegramHandle = await tg.TelegramHandle.newInstance();
 
-  runApp(TelegramPhotosApp(appDataDir: dir.path));
+  runApp(TelegramPhotosApp(appDataDir: appDataDir));
 }
 
 class TelegramPhotosApp extends StatefulWidget {

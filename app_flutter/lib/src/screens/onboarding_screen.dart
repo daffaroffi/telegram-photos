@@ -1,639 +1,718 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
+import '../platform/media_scan.dart';
+import '../rust/api/db.dart' as core;
+import '../rust/api/mirror.dart';
 import '../rust/api/telegram.dart' as tg;
-
-/// Global Telegram handle from main.dart.
 import '../../main.dart' show telegramHandle;
+import '../../main.dart' show appDataDir;
+import 'app_shell.dart';
+import 'import_screen.dart';
 
-/// Onboarding screen (PRD Part 2 S2): Telegram login via QR or phone OTP.
+/// Zero-setup onboarding (PRD Part 2 S4.1).
 ///
-/// Uses progressive disclosure: API credentials first, then method picker,
-/// then phone/QR flow. Simplifies Hick's Law by reducing choices per step.
+/// QR login is the PRIMARY flow (2 taps, no typing).
+/// Phone OTP is the fallback.
+/// After login, auto-scan gallery + auto-backup.
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onAuthenticated;
-
   const OnboardingScreen({super.key, required this.onAuthenticated});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-enum _Step { credentials, method, phoneLogin, codeEntry, passwordEntry }
-
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  // API credentials
-  final _apiIdCtrl = TextEditingController();
-  final _apiHashCtrl = TextEditingController();
+  int _step = 0; // 0=welcome, 1=method, 2=phone, 3=code, 4=setup, 5=done
 
-  // Login state
-  _Step _step = _Step.credentials;
-  bool _loading = false;
-  String? _error;
-
-  // Phone login
+  // Phone login state
   final _phoneCtrl = TextEditingController();
   final _codeCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+  bool _needPassword = false;
   final _passwordCtrl = TextEditingController();
-
-  // QR login
-  String? _qrUrl;
-  Timer? _pollTimer;
 
   @override
   void dispose() {
-    _apiIdCtrl.dispose();
-    _apiHashCtrl.dispose();
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _passwordCtrl.dispose();
-    _pollTimer?.cancel();
     super.dispose();
   }
 
-  bool get _validApiCreds =>
-      _apiIdCtrl.text.trim().isNotEmpty &&
-      _apiHashCtrl.text.trim().isNotEmpty &&
-      int.tryParse(_apiIdCtrl.text.trim()) != null;
-
-  Future<String> _appDataDir() async {
-    final dir = await MethodChannel('com.telegramphotos.app/media')
-        .invokeMethod<String>('getAppDataDir');
-    return dir ?? '';
-  }
-
-  // ─── Actions ────────────────────────────────────────────────────────────
+  // -- QR Login Flow (PRD primary) --
 
   Future<void> _startQRLogin() async {
-    if (!_validApiCreds) return;
     setState(() {
       _loading = true;
       _error = null;
     });
-    try {
-      final apiId = int.parse(_apiIdCtrl.text.trim());
-      final appDataDir = await _appDataDir();
-      final url = await tg.authQrLogin(
-        handle: telegramHandle,
-        apiId: apiId,
-        apiHash: _apiHashCtrl.text.trim(),
-        appDataDir: appDataDir,
-      );
-      if (url == '__authorized__') {
-        widget.onAuthenticated();
-        return;
-      }
-      setState(() {
-        _qrUrl = url;
-        _loading = false;
-        _step = _Step.method; // Show QR + phone choice
-      });
-      // Start polling.
-      _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-        try {
-          final result = await tg.authQrPoll(handle: telegramHandle);
-          if (result.status == 'authorized') {
-            _pollTimer?.cancel();
-            widget.onAuthenticated();
-          }
-        } catch (_) {}
-      });
-    } catch (e) {
-      setState(() {
-        _error = _mapError(e);
-        _loading = false;
-      });
-    }
-  }
 
-  Future<void> _startPhoneLogin() async {
-    if (!_validApiCreds) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
     try {
-      final apiId = int.parse(_apiIdCtrl.text.trim());
-      final appDataDir = await _appDataDir();
-      await tg.authRequestCode(
-        handle: telegramHandle,
-        phone: _phoneCtrl.text,
-        apiId: apiId,
-        apiHash: _apiHashCtrl.text.trim(),
-        appDataDir: appDataDir,
-      );
-      setState(() {
-        _loading = false;
-        _step = _Step.codeEntry;
-      });
-    } catch (e) {
-      setState(() {
-        _error = _mapError(e);
-        _loading = false;
-      });
-    }
-  }
+      final apiId = core.getSettings().telegramApiId;
+      final apiHash = core.getSettings().telegramApiHash;
 
-  Future<void> _submitCode() async {
-    if (_codeCtrl.text.trim().isEmpty) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final result = await tg.authSignIn(
-        handle: telegramHandle,
-        code: _codeCtrl.text.trim(),
-      );
-      if (result.status == 'authorized') {
-        widget.onAuthenticated();
-      } else if (result.status == 'password_required') {
+      if (apiId == 0 || apiHash.isEmpty) {
+        // Need API credentials for QR login
         setState(() {
           _loading = false;
-          _step = _Step.passwordEntry;
+          _step = 6; // API credentials input
+        });
+        return;
+      }
+
+      final qrUrl = await tg.authQrLogin(
+        handle: telegramHandle,
+        apiId: apiId,
+        apiHash: apiHash,
+        appDataDir: appDataDir,
+      );
+
+      if (qrUrl == '__authorized__') {
+        // Already authorized
+        _onLoginSuccess();
+        return;
+      }
+
+      // Show QR code
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _step = 7; // QR code display
+        });
+        // Start polling
+        _pollQRLogin();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  Future<void> _pollQRLogin() async {
+    while (mounted && _step == 7) {
+      await Future.delayed(const Duration(seconds: 2));
+      try {
+        final result = await tg.authQrPoll(handle: telegramHandle);
+        if (result.status == 'authorized') {
+          _onLoginSuccess();
+          return;
+        }
+      } catch (e) {
+        // Keep polling
+      }
+    }
+  }
+
+  // -- Phone OTP Flow (fallback) --
+
+  Future<void> _requestCode() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final phone = _phoneCtrl.text.trim();
+      if (phone.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error = 'Enter your phone number',
+        });
+        return;
+      }
+
+      final apiId = core.getSettings().telegramApiId;
+      final apiHash = core.getSettings().telegramApiHash;
+
+      if (apiId == 0 || apiHash.isEmpty) {
+        setState(() {
+          _loading = false;
+          _step = 6; // API credentials input
+        });
+        return;
+      }
+
+      await tg.authRequestCode(
+        handle: telegramHandle,
+        phone: phone,
+        apiId: apiId,
+        apiHash: apiHash,
+        appDataDir: appDataDir,
+      );
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _step = 3; // Code input
         });
       }
     } catch (e) {
-      setState(() {
-        _error = _mapError(e);
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
-  Future<void> _submitPassword() async {
-    if (_passwordCtrl.text.isEmpty) return;
+  Future<void> _signIn() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
-      final result = await tg.authCheckPassword(
+      final code = _codeCtrl.text.trim();
+      final result = await tg.authSignIn(
         handle: telegramHandle,
-        password: _passwordCtrl.text,
+        code: code,
       );
+
       if (result.status == 'authorized') {
-        widget.onAuthenticated();
+        _onLoginSuccess();
+      } else if (result.status == 'password_required') {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _needPassword = true;
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _error = _mapError(e);
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
     }
   }
 
-  String _mapError(dynamic e) {
-    final s = e.toString();
-    if (s.contains('AUTH_RESTART')) return 'Session expired. Please try again.';
-    if (s.contains('API_ID_INVALID')) return 'Invalid API ID or API Hash.';
-    if (s.contains('PHONE_NUMBER_INVALID')) return 'Invalid phone number.';
-    if (s.contains('PHONE_CODE_INVALID')) return 'Invalid verification code.';
-    if (s.contains('FLOOD_WAIT')) return 'Too many attempts. Please wait.';
-    return s;
+  Future<void> _checkPassword() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      await tg.authCheckPassword(
+        handle: telegramHandle,
+        password: _passwordCtrl.text,
+      );
+      _onLoginSuccess();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.toString();
+        });
+      }
+    }
   }
 
-  // ─── Build ──────────────────────────────────────────────────────────────
+  void _onLoginSuccess() {
+    widget.onAuthenticated();
+  }
+
+  // -- Build --
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 48),
-              // Header
-              Text(
-                'Telegram Photos',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Back up your photos to Telegram',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Connect your Telegram account to start backing up photos to your private vault with zero-knowledge encryption.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 48),
-
-              // Step indicator
-              _StepIndicator(current: _step),
-              const SizedBox(height: 32),
-
-              // Content based on step
-              if (_step == _Step.credentials) _buildCredentialsStep(),
-              if (_step == _Step.method) _buildMethodStep(),
-              if (_step == _Step.phoneLogin) _buildPhoneStep(),
-              if (_step == _Step.codeEntry) _buildCodeStep(),
-              if (_step == _Step.passwordEntry) _buildPasswordStep(),
-
-              // Error
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        LucideIcons.circleAlert,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onErrorContainer,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 32),
-            ],
-          ),
+        child: IndexedStack(
+          index: _step,
+          children: [
+            // Step 0: Welcome
+            _buildWelcome(context, cs),
+            // Step 1: Method selection
+            _buildMethodSelection(context, cs),
+            // Step 2: Phone input
+            _buildPhoneInput(context, cs),
+            // Step 3: Code input
+            _buildCodeInput(context, cs),
+            // Step 4: Setup (auto-scan)
+            _buildSetup(context, cs),
+            // Step 5: Done
+            _buildDone(context, cs),
+            // Step 6: API credentials (only if needed)
+            _buildApiCredentials(context, cs),
+            // Step 7: QR code display
+            _buildQRCode(context, cs),
+          ],
         ),
       ),
     );
   }
 
-  // ─── Step Builders ──────────────────────────────────────────────────────
-
-  Widget _buildCredentialsStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Step 1: API Credentials',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+  Widget _buildWelcome(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(LucideIcons.shield, size: 80, color: cs.primary),
+          const SizedBox(height: 32),
+          Text(
+            'Telegram Photos',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Back up your photos privately.\nEnd-to-end encrypted.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 48),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => setState(() => _step = 1),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
               ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Get these from my.telegram.org/apps',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _apiIdCtrl,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'API ID',
-            hintText: '12345678',
-            prefixIcon: Icon(LucideIcons.key),
-            border: OutlineInputBorder(),
+              child: const Text('Get started'),
+            ),
           ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _apiHashCtrl,
-          decoration: const InputDecoration(
-            labelText: 'API Hash',
-            hintText: 'a1b2c3d4e5f6...',
-            prefixIcon: Icon(LucideIcons.hash),
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _validApiCreds
-              ? () => setState(() => _step = _Step.method)
-              : null,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-          child: const Text('Continue'),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildMethodStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Step 2: Login method',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+  Widget _buildMethodSelection(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'How would you like to login?',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'QR code is fastest — no typing needed.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 32),
+
+          // QR code option (primary)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _loading ? null : _startQRLogin,
+              icon: const Icon(LucideIcons.qrCode),
+              label: const Text('Scan QR code'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
               ),
-        ),
-        const SizedBox(height: 16),
-        // QR Code option
-        if (_qrUrl != null) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Phone number option (secondary)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => setState(() => _step = 2),
+              icon: const Icon(LucideIcons.smartphone),
+              label: const Text('Use phone number'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 52),
+              ),
+            ),
+          ),
+
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
                 children: [
-                  QrImageView(
-                    data: _qrUrl!,
-                    version: QrVersions.auto,
-                    size: 180,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Scan with Telegram app',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                  Icon(LucideIcons.circleAlert,
+                      color: cs.onErrorContainer, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: TextStyle(color: cs.onErrorContainer),
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
+          ],
         ],
-        // Phone number option
-        OutlinedButton.icon(
-          onPressed: () => setState(() => _step = _Step.phoneLogin),
-          icon: const Icon(LucideIcons.phone),
-          label: const Text('Login with phone number'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
-          onPressed: _startQRLogin,
-          icon: _loading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(LucideIcons.scan),
-          label: Text(_loading ? 'Generating QR...' : 'Refresh QR code'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildPhoneStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Back button
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft),
-            onPressed: () => setState(() => _step = _Step.method),
-            tooltip: 'Back',
+  Widget _buildPhoneInput(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Enter your phone number',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter your phone number',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+          const SizedBox(height: 8),
+          Text(
+            'You will receive a verification code via Telegram.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 32),
+          TextField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: '+6281234567890',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(LucideIcons.smartphone),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_error != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(8),
               ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _phoneCtrl,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Phone number',
-            hintText: '+6281234567890',
-            prefixIcon: Icon(LucideIcons.phone),
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _loading ? null : _startPhoneLogin,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-          child: _loading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Send Code'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCodeStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft),
-            onPressed: () => setState(() => _step = _Step.phoneLogin),
-            tooltip: 'Back',
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter verification code',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Check your Telegram app for the code.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _codeCtrl,
-          keyboardType: TextInputType.number,
-          maxLength: 5,
-          decoration: const InputDecoration(
-            labelText: 'Code',
-            hintText: '12345',
-            prefixIcon: Icon(LucideIcons.shieldCheck),
-            border: OutlineInputBorder(),
-            counterText: '',
-          ),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _loading ? null : _submitCode,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-          child: _loading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Verify'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPasswordStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            icon: const Icon(LucideIcons.arrowLeft),
-            onPressed: () => setState(() => _step = _Step.codeEntry),
-            tooltip: 'Back',
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Two-factor authentication',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Enter your 2FA password.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _passwordCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            prefixIcon: Icon(LucideIcons.lock),
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _loading ? null : _submitPassword,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 48),
-          ),
-          child: _loading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit'),
-        ),
-      ],
-    );
-  }
-}
-
-// ─── Step Indicator ───────────────────────────────────────────────────────────
-
-class _StepIndicator extends StatelessWidget {
-  const _StepIndicator({required this.current});
-
-  final _Step current;
-
-  @override
-  Widget build(BuildContext context) {
-    final steps = [
-      (_Step.credentials, 'Credentials'),
-      (_Step.method, 'Method'),
-    ];
-    final currentIndex = steps.indexWhere((s) => s.$1 == current);
-
-    return Row(
-      children: [
-        for (var i = 0; i < steps.length; i++) ...[
-          if (i > 0)
-            Expanded(
-              child: Container(
-                height: 2,
-                color: i <= currentIndex
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outlineVariant,
+              child: Text(
+                _error!,
+                style: TextStyle(color: cs.onErrorContainer),
               ),
             ),
-          _StepDot(
-            label: steps[i].$2,
-            active: i <= currentIndex,
+            const SizedBox(height: 16),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading ? null : _requestCode,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Send code'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => setState(() {
+              _step = 1;
+              _error = null;
+            }),
+            child: const Text('Back'),
           ),
         ],
-      ],
+      ),
     );
   }
-}
 
-class _StepDot extends StatelessWidget {
-  const _StepDot({required this.label, required this.active});
-
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: active
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outlineVariant,
+  Widget _buildCodeInput(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            _needPassword ? 'Enter 2FA password' : 'Enter verification code',
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-          child: active
-              ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
-              : null,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: active
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outline,
+          const SizedBox(height: 8),
+          Text(
+            _needPassword
+                ? 'Your account has two-factor authentication enabled.'
+                : 'Check your Telegram app for the code.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 32),
+          TextField(
+            controller: _needPassword ? _passwordCtrl : _codeCtrl,
+            obscureText: _needPassword,
+            keyboardType: _needPassword ? TextInputType.text : TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: _needPassword ? 'Password' : '12345',
+              border: const OutlineInputBorder(),
+              prefixIcon: Icon(
+                _needPassword ? LucideIcons.lock : LucideIcons.hash,
               ),
-        ),
-      ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_error != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cs.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _error!,
+                style: TextStyle(color: cs.onErrorContainer),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _loading
+                  ? null
+                  : _needPassword ? _checkPassword : _signIn,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Continue'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => setState(() {
+              _step = _needPassword ? 3 : 2;
+              _error = null;
+              _needPassword = false;
+            }),
+            child: const Text('Back'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSetup(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 24),
+          Text(
+            'Setting up your vault...',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Scanning your gallery and creating your private vault channel.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDone(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(LucideIcons.circleCheck, size: 72, color: Colors.green),
+          const SizedBox(height: 24),
+          Text(
+            'You are all set!',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Your photos are being backed up securely to your private Telegram vault.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const AppShell()),
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
+              ),
+              child: const Text('View my photos'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApiCredentials(BuildContext context, ColorScheme cs) {
+    final apiIdCtrl = TextEditingController();
+    final apiHashCtrl = TextEditingController();
+
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Telegram API credentials',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Get these from my.telegram.org',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 32),
+          TextField(
+            controller: apiIdCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              hintText: 'API ID (number)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: apiHashCtrl,
+            decoration: const InputDecoration(
+              hintText: 'API Hash (string)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                // Save and continue
+                final apiId = int.tryParse(apiIdCtrl.text) ?? 0;
+                final apiHash = apiHashCtrl.text.trim();
+                if (apiId > 0 && apiHash.isNotEmpty) {
+                  final settings = core.getSettings();
+                  core.saveSettings(
+                    settings: AppSettings(
+                      autoBackupEnabled: settings.autoBackupEnabled,
+                      backupOverWifiOnly: settings.backupOverWifiOnly,
+                      backupWhileChargingOnly: settings.backupWhileChargingOnly,
+                      uploadOriginalQuality: settings.uploadOriginalQuality,
+                      folderBackupSettings: settings.folderBackupSettings,
+                      clientEncryptionEnabled: settings.clientEncryptionEnabled,
+                      vaultPassphraseSet: settings.vaultPassphraseSet,
+                      gridColumnCount: settings.gridColumnCount,
+                      theme: settings.theme,
+                      telegramApiId: apiId,
+                      telegramApiHash: apiHash,
+                      googleClientId: settings.googleClientId,
+                      googleClientSecret: settings.googleClientSecret,
+                    ),
+                  );
+                  setState(() => _step = 1);
+                }
+              },
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 52),
+              ),
+              child: const Text('Save & continue'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => setState(() => _step = 1),
+            child: const Text('Back'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQRCode(BuildContext context, ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Scan QR code',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Open Telegram > Settings > Devices > Scan QR Code',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Waiting for scan...',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => setState(() {
+              _step = 1;
+              _error = null;
+            }),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 }
