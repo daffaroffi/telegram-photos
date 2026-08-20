@@ -107,10 +107,12 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     );
 
     if (result != null && result.isNotEmpty && result != col.name) {
-      // TODO: Implement rename in Rust core
+      // No rename_collection() binding yet. Be honest about it.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rename coming soon')),
+          const SnackBar(
+            content: Text('Rename is not implemented yet — coming in a follow-up'),
+          ),
         );
       }
     }
@@ -143,10 +145,12 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     );
 
     if (result == true) {
-      // TODO: Implement delete in Rust core
+      // No delete_collection() binding yet. Be honest about it.
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Delete coming soon')),
+          const SnackBar(
+            content: Text('Delete is not implemented yet — coming in a follow-up'),
+          ),
         );
       }
     }

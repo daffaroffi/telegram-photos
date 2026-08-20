@@ -20,7 +20,6 @@ class CaptionsScreen extends StatefulWidget {
 
 class _CaptionsScreenState extends State<CaptionsScreen> {
   late TextEditingController _captionCtrl;
-  List<String> _tags = [];
   bool _saving = false;
 
   @override
@@ -28,8 +27,6 @@ class _CaptionsScreenState extends State<CaptionsScreen> {
     super.initState();
     final existing = core.getCaption(mediaId: widget.item.id);
     _captionCtrl = TextEditingController(text: existing ?? '');
-    // TODO: Load existing tags from DB
-    _tags = [];
   }
 
   @override
@@ -45,11 +42,6 @@ class _CaptionsScreenState extends State<CaptionsScreen> {
     try {
       final text = _captionCtrl.text.trim();
       core.saveCaption(mediaId: widget.item.id, text: text);
-
-      // Save hashtags
-      for (final tag in _tags) {
-        core.addCaptionTag(mediaId: widget.item.id, tag: tag);
-      }
 
       HapticFeedback.lightImpact();
       if (mounted) {
@@ -67,19 +59,6 @@ class _CaptionsScreenState extends State<CaptionsScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  void _addTag(String tag) {
-    final cleaned = tag.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '').toLowerCase();
-    if (cleaned.isEmpty || _tags.contains(cleaned)) return;
-    setState(() {
-      _tags.add(cleaned);
-      // Append to caption text
-      final current = _captionCtrl.text;
-      if (!current.contains('#$cleaned')) {
-        _captionCtrl.text = '$current #$cleaned'.trim();
-      }
-    });
   }
 
   @override
@@ -136,25 +115,16 @@ class _CaptionsScreenState extends State<CaptionsScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Quick hashtag chips
+          // Hashtag support exists in the DB layer (caption_tags table,
+          // addCaptionTag / searchByHashtag) but no per-media list API
+          // is exposed yet, so the chips would just keep adding tags
+          // blindly. Show a placeholder until the Rust side exposes
+          // list_caption_tags and the FRB binding is regenerated.
           Text(
-            'Quick tags',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            'Hashtags coming in a follow-up',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              _TagChip(label: 'family', onTap: () => _addTag('family')),
-              _TagChip(label: 'travel', onTap: () => _addTag('travel')),
-              _TagChip(label: 'food', onTap: () => _addTag('food')),
-              _TagChip(label: 'nature', onTap: () => _addTag('nature')),
-              _TagChip(label: 'selfie', onTap: () => _addTag('selfie')),
-              _TagChip(label: 'screenshot', onTap: () => _addTag('screenshot')),
-            ],
           ),
           const SizedBox(height: 16),
 
@@ -177,22 +147,6 @@ class _CaptionsScreenState extends State<CaptionsScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      label: Text('#$label'),
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
     );
   }
 }

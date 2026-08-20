@@ -22,95 +22,33 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
 
   Future<void> _backupDatabase() async {
     if (_backingUp) return;
-    setState(() => _backingUp = true);
 
-    try {
-      // Check if encryption is enabled
-      final status = crypto.vaultStatus();
-      if (!status.enabled || !status.unlocked) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Enable and unlock encryption first to backup your database securely.',
-              ),
-            ),
-          );
-        }
-        setState(() => _backingUp = false);
-        return;
-      }
-
-      // TODO: Implement actual DB export + encrypt + upload to vault
-      // 1. Export all tables to JSON
-      // 2. Encrypt JSON with XChaCha20-Poly1305
-      // 3. Upload to vault as .tphotos-backup file
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Database backup saved to vault'),
+    // The full DB-export pipeline (serialize -> encrypt -> upload) is
+    // not yet wired up in v0.7. Show a clear "coming soon" instead of
+    // faking success with a delay.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Database backup is not implemented yet — coming in a follow-up',
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Backup failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _backingUp = false);
+        ),
+      );
     }
   }
 
   Future<void> _restoreDatabase() async {
     if (_restoring) return;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Restore database?'),
-        content: const Text(
-          'This will merge backed-up data with your current data. '
-          'Existing data will not be deleted.',
+    // Symmetric to _backupDatabase: the restore pipeline is not wired
+    // up in v0.7, so don't fake success with a delay.
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Database restore is not implemented yet — coming in a follow-up',
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
-    setState(() => _restoring = true);
-
-    try {
-      // TODO: Implement actual restore: download from vault -> decrypt -> merge
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Database restored successfully'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Restore failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _restoring = false);
+      );
     }
   }
 

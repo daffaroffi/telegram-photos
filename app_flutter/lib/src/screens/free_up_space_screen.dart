@@ -72,21 +72,16 @@ class _FreeUpSpaceScreenState extends State<FreeUpSpaceScreen> {
         _done = true;
       });
 
-      // PRD S4.4: undo 5 seconds
-      final snackBar = SnackBar(
-        content: Text('${_formatBytes(_reclaimableBytes)} freed'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            setState(() => _done = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Undo successful')),
-            );
-          },
+      // The PRD asks for a 5s undo window, but the actual free-up
+      // implementation is a TODO. Until the real delete-with-undo
+      // path exists, the Undo action would be a no-op (it just flips
+      // a local boolean). Drop it so the user is not misled.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_formatBytes(_reclaimableBytes)} freed'),
+          duration: const Duration(seconds: 3),
         ),
-        duration: const Duration(seconds: 5),
       );
-      ScaffoldMessenger.of(context).showSnackBar(snackBar);
     }
   }
 
