@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../platform/media_scan.dart';
 import '../rust/api/db.dart' as core;
 import '../rust/api/mirror.dart';
 import '../rust/api/telegram.dart' as tg;
 import '../../main.dart' show telegramHandle;
 import '../../main.dart' show appDataDir;
 import 'app_shell.dart';
-import 'import_screen.dart';
 
 /// Zero-setup onboarding (PRD Part 2 S4.1).
 ///
@@ -34,11 +32,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _needPassword = false;
   final _passwordCtrl = TextEditingController();
 
+  // Controllers for API credentials form (must NOT be created inside build).
+  final _apiIdCtrl = TextEditingController();
+  final _apiHashCtrl = TextEditingController();
+
   @override
   void dispose() {
     _phoneCtrl.dispose();
     _codeCtrl.dispose();
     _passwordCtrl.dispose();
+    _apiIdCtrl.dispose();
+    _apiHashCtrl.dispose();
     super.dispose();
   }
 
@@ -51,10 +55,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     try {
-      final apiId = core.getSettings().telegramApiId;
-      final apiHash = core.getSettings().telegramApiHash;
+      final settings = core.getSettings();
+      final apiId = settings.telegramApiId;
+      final apiHash = settings.telegramApiHash;
 
-      if (apiId == 0 || apiHash.isEmpty) {
+      if (apiId == null || apiId.isEmpty || apiHash == null || apiHash.isEmpty) {
         // Need API credentials for QR login
         setState(() {
           _loading = false;
@@ -65,7 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       final qrUrl = await tg.authQrLogin(
         handle: telegramHandle,
-        apiId: apiId,
+        apiId: int.tryParse(apiId) ?? 0,
         apiHash: apiHash,
         appDataDir: appDataDir,
       );
@@ -123,15 +128,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (phone.isEmpty) {
         setState(() {
           _loading = false;
-          _error = 'Enter your phone number',
+          _error = 'Enter your phone number';
         });
         return;
       }
 
-      final apiId = core.getSettings().telegramApiId;
-      final apiHash = core.getSettings().telegramApiHash;
+      final settings = core.getSettings();
+      final apiId = settings.telegramApiId;
+      final apiHash = settings.telegramApiHash;
 
-      if (apiId == 0 || apiHash.isEmpty) {
+      if (apiId == null || apiId.isEmpty || apiHash == null || apiHash.isEmpty) {
         setState(() {
           _loading = false;
           _step = 6; // API credentials input
@@ -142,7 +148,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await tg.authRequestCode(
         handle: telegramHandle,
         phone: phone,
-        apiId: apiId,
+        apiId: int.tryParse(apiId) ?? 0,
         apiHash: apiHash,
         appDataDir: appDataDir,
       );
@@ -583,10 +589,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildApiCredentials(BuildContext context, ColorScheme cs) {
-    final apiIdCtrl = TextEditingController();
-    final apiHashCtrl = TextEditingController();
 
+
+  Widget _buildApiCredentials(BuildContext context, ColorScheme cs) {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -605,19 +610,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 32),
           TextField(
-            controller: apiIdCtrl,
+            controller: _apiIdCtrl,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
               hintText: 'API ID (number)',
               border: OutlineInputBorder(),
+              prefixIcon: Icon(LucideIcons.hash),
             ),
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: apiHashCtrl,
+            controller: _apiHashCtrl,
             decoration: const InputDecoration(
               hintText: 'API Hash (string)',
               border: OutlineInputBorder(),
+              prefixIcon: Icon(LucideIcons.keyRound),
             ),
           ),
           const SizedBox(height: 16),
@@ -625,30 +632,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             child: FilledButton(
               onPressed: () {
-                // Save and continue
-                final apiId = int.tryParse(apiIdCtrl.text) ?? 0;
-                final apiHash = apiHashCtrl.text.trim();
-                if (apiId > 0 && apiHash.isNotEmpty) {
-                  final settings = core.getSettings();
-                  core.saveSettings(
-                    settings: AppSettings(
-                      autoBackupEnabled: settings.autoBackupEnabled,
-                      backupOverWifiOnly: settings.backupOverWifiOnly,
-                      backupWhileChargingOnly: settings.backupWhileChargingOnly,
-                      uploadOriginalQuality: settings.uploadOriginalQuality,
-                      folderBackupSettings: settings.folderBackupSettings,
-                      clientEncryptionEnabled: settings.clientEncryptionEnabled,
-                      vaultPassphraseSet: settings.vaultPassphraseSet,
-                      gridColumnCount: settings.gridColumnCount,
-                      theme: settings.theme,
-                      telegramApiId: apiId,
-                      telegramApiHash: apiHash,
-                      googleClientId: settings.googleClientId,
-                      googleClientSecret: settings.googleClientSecret,
-                    ),
-                  );
-                  setState(() => _step = 1);
+                // Validate before saving
+                final rawApiId = int.tryParse(_apiIdCtrl.text.trim()) ?? 0;
+                final apiHash = _apiHashCtrl.text.trim();
+                String? error;
+                if (rawApiId <= 0) {
+                  error = 'API ID must be a valid number';
+                } else if (apiHash.isEmpty) {
+                  error = 'API Hash must not be empty';
                 }
+                if (error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(error)),
+                  );
+                  return;
+                }
+                final settings = core.getSettings();
+                core.saveSettings(
+                  settings: AppSettings(
+                    autoBackupEnabled: settings.autoBackupEnabled,
+                    backupOverWifiOnly: settings.backupOverWifiOnly,
+                    backupWhileChargingOnly: settings.backupWhileChargingOnly,
+                    uploadOriginalQuality: settings.uploadOriginalQuality,
+                    folderBackupSettings: settings.folderBackupSettings,
+                    clientEncryptionEnabled: settings.clientEncryptionEnabled,
+                    vaultPassphraseSet: settings.vaultPassphraseSet,
+                    gridColumnCount: settings.gridColumnCount,
+                    theme: settings.theme,
+                    telegramApiId: rawApiId.toString(),
+                    telegramApiHash: apiHash,
+                    googleClientId: settings.googleClientId,
+                    googleClientSecret: settings.googleClientSecret,
+                  ),
+                );
+                setState(() => _step = 1);
               },
               style: FilledButton.styleFrom(
                 minimumSize: const Size(0, 52),

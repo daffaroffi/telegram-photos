@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -11,22 +13,27 @@ class SearchScreen extends StatefulWidget {
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
-}
-
-class _SearchScreenState extends State<SearchScreen> {
+}class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _query = TextEditingController();
+  Timer? _debounce;
   String _mode = 'all'; // all | videos | screenshots | recent
   List<MediaItem> _results = [];
   bool _searched = false;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _query.dispose();
     super.dispose();
   }
 
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () => _runSearch(value));
+  }
+
   void _runSearch(String value) {
-    final q = value.trim().toLowerCase();
+    final q = value.trim();
     setState(() {
       _searched = true;
       if (q.isEmpty) {
@@ -34,22 +41,8 @@ class _SearchScreenState extends State<SearchScreen> {
         return;
       }
 
-      final all = core.listTimeline(beforeTimestamp: null, limit: 5000);
-      var hits = <MediaItem>[];
-
-      if (q.startsWith('#')) {
-        final ids = core.searchByHashtag(tag: q.substring(1)).toSet();
-        hits = all.where((m) => ids.contains(m.id)).toList();
-      } else {
-        hits = all
-            .where((m) =>
-                m.fileName.toLowerCase().contains(q) ||
-                (core.getCaption(mediaId: m.id) ?? '')
-                    .toLowerCase()
-                    .contains(q))
-            .toList();
-      }
-
+      // Use SQL-side search instead of loading all rows into Dart memory.
+      var hits = core.searchMedia(query: q, limit: 200);
       _applyMode(hits);
     });
   }
@@ -92,8 +85,7 @@ class _SearchScreenState extends State<SearchScreen> {
               hintStyle: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-            ),
-            onChanged: _runSearch,
+            ),              onChanged: _onQueryChanged,
           ),
         ),
         actions: [

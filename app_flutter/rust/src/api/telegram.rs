@@ -155,12 +155,14 @@ pub async fn upload_photo(
     };
 
     let file_path_obj = std::path::PathBuf::from(&upload_path);
-    let file_bytes = tokio::fs::read(&file_path_obj)
+    let size = tokio::fs::metadata(&file_path_obj)
         .await
-        .map_err(|e| format!("Failed to read file: {}", e))?;
-    let size = file_bytes.len();
-    let reader = std::io::Cursor::new(file_bytes);
-    let boxed_reader: Box<dyn tokio::io::AsyncRead + Unpin + Send> = Box::new(reader);
+        .map_err(|e| format!("Failed to read file metadata: {}", e))?
+        .len() as usize;
+    let file = tokio::fs::File::open(&file_path_obj)
+        .await
+        .map_err(|e| format!("Failed to open file: {}", e))?;
+    let boxed_reader: Box<dyn tokio::io::AsyncRead + Unpin + Send> = Box::new(file);
 
     let upload_name = if upload_path != file_path {
         format!("{}.tdenc", file_name)

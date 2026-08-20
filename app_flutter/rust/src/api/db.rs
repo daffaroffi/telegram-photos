@@ -207,3 +207,25 @@ pub fn list_pending_backup(limit: i64) -> Result<Vec<MediaItem>, String> {
     let all = db()?.list_media_by_statuses(&["NOT_BACKED_UP"])?;
     Ok(all.into_iter().take(limit as usize).collect())
 }
+
+/// SQL-side search by file name, caption, or hashtag.
+#[frb(sync)]
+pub fn search_media(query: String, limit: i64) -> Result<Vec<MediaItem>, String> {
+    if query.trim().is_empty() {
+        return Ok(vec![]);
+    }
+    db()?.search_media(&query, limit)
+}
+
+/// Sum reclaimable space (Free Up Space screen).
+/// Returns (total_bytes, total_count).
+#[frb(sync)]
+pub fn sum_reclaimable_space() -> Result<(i64, i64), String> {
+    db()?.sum_reclaimable_space()
+}
+
+/// List media filtered by sync status (Upload screen).
+#[frb(sync)]
+pub fn list_media_by_status(status: String, limit: i64) -> Result<Vec<MediaItem>, String> {
+    db()?.list_media_by_status(&status, limit)
+}

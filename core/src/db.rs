@@ -1061,6 +1061,55 @@ impl Db {
         }
         Ok(out)
     }
+
+    // ── Aggregation queries (avoid loading all rows into Dart) ─────────────
+
+    /// SQL-side search by file name, caption text, or caption tag.
+    /// Returns at most `limit` matching MediaItems.
+    pub fn search_media(&self, query: &str, limit: i64) -> Result<Vec<MediaItem>, String> {
+        let pattern = format!("%{}%", query);
+        self.query_media(
+            "WHERE is_trashed = 0 AND (
+                file_name LIKE ?1
+                OR id IN (SELECT media_id FROM captions WHERE text LIKE ?1)
+                OR id IN (SELECT media_id FROM caption_tags WHERE tag LIKE ?1)
+            ) ORDER BY date_taken DESC LIMIT ?2",
+            &[
+                (1usize, Value::String(pattern)),
+                (2usize, Value::Integer(limit)),
+            ],
+        )
+    }
+
+    /// Sum file_size_bytes + count for backed-up media (Free Up Space screen).
+    /// Returns (total_bytes, total_count).
+    pub fn sum_reclaimable_space(&self) -> Result<(i64, i64), String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT COALESCE(SUM(file_size_bytes), 0), COUNT(*)
+                 FROM media_items WHERE sync_status = 'BACKED_UP' AND is_trashed = 0",
+            )
+            .map_err(|e| e.to_string())?;
+        if let State::Row = stmt.next().map_err(|e| e.to_string())? {
+            let bytes: i64 = stmt.read(0).map_err(|e| e.to_string())?;
+            let count: i64 = stmt.read(1).map_err(|e| e.to_string())?;
+            Ok((bytes, count))
+        } else {
+            Ok((0, 0))
+        }
+    }
+
+    /// List media filtered by sync status (Upload screen: BACKED_UP / FAILED).
+    pub fn list_media_by_status(&self, status: &str, limit: i64) -> Result<Vec<MediaItem>, String> {
+        self.query_media(
+            "WHERE sync_status = ?1 AND is_trashed = 0 ORDER BY date_added DESC LIMIT ?2",
+            &[
+                (1usize, Value::String(status.to_string())),
+                (2usize, Value::Integer(limit)),
+            ],
+        )
+    }
 }
 
 fn read_upload_row(stmt: &Statement) -> Result<Upload, String> {

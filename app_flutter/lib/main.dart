@@ -8,28 +8,41 @@ import 'src/rust/api/telegram.dart' as tg;
 import 'src/rust/frb_generated.dart';
 
 /// Global Telegram handle -- created once at startup, shared across screens.
-late final tg.TelegramHandle telegramHandle;
+tg.TelegramHandle? _telegramHandle;
+tg.TelegramHandle get telegramHandle => _telegramHandle!;
 
 /// App data directory (from path_provider). Shared across screens.
-late final String appDataDir;
+String _appDataDir = '';
+String get appDataDir => _appDataDir;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Show the app shell immediately -- heavy Rust/Telegram init runs async
+  // below so the first frame renders without blocking the UI thread.
+  runApp(const TelegramPhotosApp());
+
+  // Yield to let the first frame render before doing heavy work.
+  await Future<void>.delayed(Duration.zero);
+
+  // Load the Rust native library.
   await RustLib.init();
+  await Future<void>.delayed(Duration.zero);
 
-  // Open the real SQLite database through the Rust core.
-  appDataDir = (await getApplicationSupportDirectory()).path;
-  core.initCore(dbPath: '$appDataDir/telegram_photos.db');
+  // Resolve the app data directory.
+  _appDataDir = (await getApplicationSupportDirectory()).path;
+  await Future<void>.delayed(Duration.zero);
 
-  // Create the Telegram state handle (lives for the app lifetime).
-  telegramHandle = await tg.TelegramHandle.newInstance();
+  // Open the SQLite database.
+  core.initCore(dbPath: '$_appDataDir/telegram_photos.db');
+  await Future<void>.delayed(Duration.zero);
 
-  runApp(TelegramPhotosApp(appDataDir: appDataDir));
+  // Create the Telegram MTProto state handle.
+  _telegramHandle = await tg.TelegramHandle.newInstance();
 }
 
 class TelegramPhotosApp extends StatefulWidget {
-  final String appDataDir;
-  const TelegramPhotosApp({super.key, required this.appDataDir});
+  const TelegramPhotosApp({super.key});
 
   @override
   State<TelegramPhotosApp> createState() => _TelegramPhotosAppState();
@@ -38,23 +51,47 @@ class TelegramPhotosApp extends StatefulWidget {
 class _TelegramPhotosAppState extends State<TelegramPhotosApp> {
   bool _authorized = false;
   bool _checking = true;
+  String? _initError;
 
   @override
   void initState() {
     super.initState();
-    _checkAuth();
+    _waitForInitAndCheck();
+  }
+
+  /// Polls until the global Telegram handle is ready, then checks auth.
+  Future<void> _waitForInitAndCheck() async {
+    // Wait for main() to finish the heavy Rust/Telegram init.
+    while (_telegramHandle == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (!mounted) return;
+    await _checkAuth();
   }
 
   Future<void> _checkAuth() async {
-    final connected = await tg.checkConnection(
-      handle: telegramHandle,
-      appDataDir: widget.appDataDir,
-    );
-    if (mounted) {
-      setState(() {
-        _authorized = connected;
-        _checking = false;
-      });
+    try {
+      // Use a 15-second timeout so the UI doesn't hang indefinitely.
+      final connected = await tg.checkConnection(
+        handle: telegramHandle,
+        appDataDir: appDataDir,
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => false,
+      );
+      if (mounted) {
+        setState(() {
+          _authorized = connected;
+          _checking = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _initError = e.toString();
+          _checking = false;
+        });
+      }
     }
   }
 
@@ -67,13 +104,37 @@ class _TelegramPhotosAppState extends State<TelegramPhotosApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2AABEE)),
         useMaterial3: true,
       ),
-      home: _checking
-          ? const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+      home: _initError != null
+          ? Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Failed to initialize: $_initError'),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () {
+                        setState(() {
+                          _initError = null;
+                          _checking = true;
+                        });
+                        _checkAuth();
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             )
-          : _authorized
-              ? const AppShell()
-              : OnboardingScreen(onAuthenticated: _checkAuth),
+          : _checking
+              ? const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                )
+              : _authorized
+                  ? const AppShell()
+                  : OnboardingScreen(onAuthenticated: _checkAuth),
     );
   }
 }

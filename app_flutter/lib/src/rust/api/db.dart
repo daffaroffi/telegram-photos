@@ -109,3 +109,23 @@ void setMediaStatus({required String id, required int status}) =>
 /// List media items that haven't been backed up yet, for background backup.
 List<MediaItem> listPendingBackup({required PlatformInt64 limit}) =>
     RustLib.instance.api.crateApiDbListPendingBackup(limit: limit);
+
+/// SQL-side search by file name, caption, or hashtag.
+List<MediaItem> searchMedia({
+  required String query,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiDbSearchMedia(query: query, limit: limit);
+
+/// Sum reclaimable space (Free Up Space screen).
+/// Returns (total_bytes, total_count).
+(PlatformInt64, PlatformInt64) sumReclaimableSpace() =>
+    RustLib.instance.api.crateApiDbSumReclaimableSpace();
+
+/// List media filtered by sync status (Upload screen).
+List<MediaItem> listMediaByStatus({
+  required String status,
+  required PlatformInt64 limit,
+}) => RustLib.instance.api.crateApiDbListMediaByStatus(
+  status: status,
+  limit: limit,
+);

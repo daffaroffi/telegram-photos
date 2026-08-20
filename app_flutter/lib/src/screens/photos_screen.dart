@@ -9,6 +9,7 @@ import '../platform/media_scan.dart';
 import '../../src/rust/api/db.dart' as core;
 import '../../src/rust/api/mirror.dart';
 import '../../src/rust/api/telegram.dart' as tg;
+import '../platform/backup_service.dart';
 import '../widgets/backup_banner.dart';
 import '../widgets/status_badge.dart';
 import 'upload_screen.dart';
@@ -97,41 +98,23 @@ class _PhotosScreenState extends State<PhotosScreen> {
     if (_selectedIds.isEmpty) return;
     final messenger = ScaffoldMessenger.of(context);
     final items = _items.where((m) => _selectedIds.contains(m.id)).toList();
-    int success = 0;
-    int failed = 0;
 
-    messenger.showSnackBar(
-      SnackBar(content: Text('Uploading ${items.length} photos...')),
-    );
-
-    for (final item in items) {
-      try {
-        final tempPath = await MediaScan.readFileToTemp(item.id);
-        final ext = tempPath.split('.').last.toLowerCase();
-        final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
-        final mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
-        await tg.uploadPhoto(
-          handle: telegramHandle,
-          filePath: tempPath,
-          fileName: item.fileName,
-          mimeType: mimeType,
-          isVideo: isVideo,
-        );
-        core.setMediaStatus(id: item.id, status: 1);
-        success++;
-      } catch (e) {
-        failed++;
-      }
-    }
+    // Delegate to BackupService for background upload instead of blocking
+    // the UI thread with sequential awaits.
+    final payload = items
+        .map((m) => {
+              'contentUri': m.id,
+              'fileName': m.fileName,
+              'mimeType': m.mimeType,
+              'isVideo': m.mediaType == 'video',
+            })
+        .toList();
+    await BackupService.startBackup(payload);
 
     _exitSelectionMode();
     if (mounted) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Upload complete: $success succeeded, $failed failed',
-          ),
-        ),
+        SnackBar(content: Text('Uploading ${items.length} photos in background')),
       );
       setState(() {});
     }

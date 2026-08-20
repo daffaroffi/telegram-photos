@@ -29,18 +29,10 @@ class _FreeUpSpaceScreenState extends State<FreeUpSpaceScreen> {
   }
 
   void _calculateReclaimable() {
-    // Count items that are BACKED_UP
-    final allMedia = core.listTimeline(beforeTimestamp: null, limit: 99999);
-    int reclaimable = 0;
-    int count = 0;
-    for (final item in allMedia) {
-      if (item.syncStatus == 'BACKED_UP') {
-        reclaimable += item.fileSizeBytes;
-        count++;
-      }
-    }
+    // Use SQL aggregation instead of loading all rows into Dart memory.
+    final (bytes, count) = core.sumReclaimableSpace();
     setState(() {
-      _reclaimableBytes = reclaimable;
+      _reclaimableBytes = bytes;
       _reclaimableCount = count;
     });
   }

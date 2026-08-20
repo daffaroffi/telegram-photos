@@ -40,12 +40,8 @@ class _UploadScreenState extends State<UploadScreen> {
     setState(() => _loading = true);
 
     final pending = core.listPendingBackup(limit: 1000);
-    final all = core.listTimeline(beforeTimestamp: null, limit: 10000);
-
-    final uploaded = all.where((m) => m.syncStatus == 'BACKED_UP').toList();
-    // Failed items surface from the same timeline: rows whose sync_status
-    // is FAILED. No separate upload_errors table is consulted here.
-    final failed = all.where((m) => m.syncStatus == 'FAILED').toList();
+    final uploaded = core.listMediaByStatus(status: 'BACKED_UP', limit: 10000);
+    final failed = core.listMediaByStatus(status: 'FAILED', limit: 1000);
 
     setState(() {
       _pendingItems = pending;
