@@ -75,7 +75,7 @@ impl UploadManager {
 
     /// Queue an item for upload.
     pub async fn queue_item(&self, item: UploadItem) {
-        let queue = self.queue.lock().await;
+        let mut queue = self.queue.lock().await;
         queue.push(UploadItem {
             state: UploadState::Queued,
             ..item
