@@ -705,6 +705,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 16),
           TextButton(
+            // TODO(call-rust): when the FRB binding for auth_qr_cancel
+            // is generated, call it here so the Rust-side login_token
+            // is dropped on user back-out. For now the Dart poll loop
+            // exits on _step != 7 and the token is cleared on next login.
             onPressed: () => setState(() {
               _step = 1;
               _error = null;

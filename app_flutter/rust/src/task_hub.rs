@@ -1,7 +1,11 @@
 //! Task Progress Hub (PRD Part 2 S6.1).
 //!
 //! Central registry for all background tasks (upload, scan, hash, restore).
-//! Events are batched and throttled before sending to Dart.
+//!
+//! Events are emitted on every state change. Callers that produce many
+//! rapid updates (e.g. chunked uploads) are expected to throttle at the
+//! source rather than rely on this hub. A follow-up may add a coalescing
+//! flusher task; until then, the Dart side buffers events in a stream.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
