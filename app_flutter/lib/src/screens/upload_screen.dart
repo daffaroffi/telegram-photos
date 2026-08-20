@@ -43,7 +43,9 @@ class _UploadScreenState extends State<UploadScreen> {
     final all = core.listTimeline(beforeTimestamp: null, limit: 10000);
 
     final uploaded = all.where((m) => m.syncStatus == 'BACKED_UP').toList();
-    final failed = <MediaItem>[]; // TODO: get from upload_errors table
+    // Failed items surface from the same timeline: rows whose sync_status
+    // is FAILED. No separate upload_errors table is consulted here.
+    final failed = all.where((m) => m.syncStatus == 'FAILED').toList();
 
     setState(() {
       _pendingItems = pending;
@@ -64,6 +66,11 @@ class _UploadScreenState extends State<UploadScreen> {
       _failedCount = 0;
     });
 
+    // TODO(perf): uploads run strictly sequentially. Once device_tier
+    // detection is reintroduced, replace this with a worker pool sized
+    // by tier (Low/Mid = 1, High = 2). Until then, prefer
+    // BackupService.startBackup for background work where ordering and
+    // per-item progress are not required.
     for (int i = 0; i < _pendingItems.length; i++) {
       if (!_uploading) break; // Allow cancellation
 
@@ -72,9 +79,13 @@ class _UploadScreenState extends State<UploadScreen> {
 
       try {
         final tempPath = await MediaScan.readFileToTemp(item.id);
-        final ext = tempPath.split('.').last.toLowerCase();
-        final isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
-        final mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+        // Use the MediaItem fields directly. Deriving from the temp file
+        // extension misclassified HEIC/PNG/WebP as 'image/jpeg' and
+        // could not handle paths without an extension at all.
+        final isVideo = item.mediaType == 'video';
+        final mimeType = item.mimeType.isNotEmpty
+            ? item.mimeType
+            : (isVideo ? 'video/mp4' : 'image/jpeg');
 
         await tg.uploadPhoto(
           handle: telegramHandle,
@@ -88,7 +99,9 @@ class _UploadScreenState extends State<UploadScreen> {
         _successCount++;
       } catch (e) {
         _failedCount++;
-        // TODO: Log to upload_errors table
+        // Mark the row as FAILED so it shows up in the failed section
+        // on the next reload and the retry action can find it.
+        core.setMediaStatus(id: item.id, status: 3);
       }
 
       // Refresh UI periodically
@@ -209,8 +222,27 @@ class _UploadScreenState extends State<UploadScreen> {
                         children: _failedItems.take(10).map(
                               (item) => _FailedTile(
                                 item: item,
-                                onRetry: () {
-                                  // TODO: Implement retry
+                                onRetry: () async {
+                                  // Reset to NOT_BACKED_UP so the row
+                                  // moves into the Pending section and
+                                  // the next bulk run picks it up.
+                                  try {
+                                    core.setMediaStatus(id: item.id, status: 0);
+                                    await _loadItems();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Re-queued ${item.fileName}'),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Retry failed: $e')),
+                                      );
+                                    }
+                                  }
                                 },
                               ),
                             ).toList(),
