@@ -298,6 +298,19 @@ class _PhotosScreenState extends State<PhotosScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
     try {
+      // Request media permissions first (Android 13+ requires runtime request).
+      final granted = await MediaScan.requestPermissions();
+      if (!granted) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: const Text('Media permission is required to scan photos'),
+              backgroundColor: errorColor,
+            ),
+          );
+        }
+        return;
+      }
       final json = await MediaScan.scanGalleryJson();
       final added = core.importScanResults(json: json);
       await _ensureThumbnails();

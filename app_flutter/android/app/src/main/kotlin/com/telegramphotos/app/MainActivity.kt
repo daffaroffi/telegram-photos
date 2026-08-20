@@ -13,5 +13,27 @@ class MainActivity : FlutterActivity() {
             "com.telegramphotos.app/media",
         )
         MediaPlugin.register(channel, applicationContext)
+        MediaPlugin.currentActivity = this
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == MediaPlugin.REQUEST_MEDIA_PERMISSIONS) {
+            MediaPlugin.onPermissionResult(grantResults)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MediaPlugin.currentActivity = this
+    }
+
+    override fun onDestroy() {
+        MediaPlugin.currentActivity = null
+        super.onDestroy()
     }
 }

@@ -36,4 +36,16 @@ class MediaScan {
     if (result == null) throw Exception('Failed to read file');
     return result;
   }
+
+  /// Check if media permissions are already granted.
+  static Future<bool> checkPermissions() async {
+    final result = await _channel.invokeMethod<bool>('checkMediaPermissions');
+    return result ?? false;
+  }
+
+  /// Request media permissions from the user. Returns true if granted.
+  static Future<bool> requestPermissions() async {
+    final result = await _channel.invokeMethod<bool>('requestMediaPermissions');
+    return result ?? false;
+  }
 }

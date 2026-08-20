@@ -1,8 +1,11 @@
 package com.telegramphotos.app
 
+import android.Manifest
+import android.app.Activity
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -10,6 +13,8 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
@@ -39,10 +44,6 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 val folder = call.argument<String>("folder") ?: ""
                 result.success(scanMediaStore(folder))
             }
-            "getAppDataDir" -> {
-                val ctx = appContext ?: return result.error("NO_CONTEXT", "No context", null)
-                result.success(ctx.filesDir.absolutePath)
-            }
             "generateThumbnails" -> {
                 val ids = call.argument<List<String>>("ids") ?: emptyList()
                 result.success(generateThumbnails(ids))
@@ -63,9 +64,13 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
                 BackupWorker.cancelAll(appContext ?: return result.error("NO_CONTEXT", "No context", null))
                 result.success(true)
             }
-            "getAppDataDir" -> {
+            "requestMediaPermissions" -> {
+                val activity = getActivity(result) ?: return
+                requestMediaPermissions(activity, result)
+            }
+            "checkMediaPermissions" -> {
                 val ctx = appContext ?: return result.error("NO_CONTEXT", "No context", null)
-                result.success(ctx.filesDir.absolutePath)
+                result.success(hasMediaPermissions(ctx))
             }
             else -> result.notImplemented()
         }
@@ -286,4 +291,70 @@ object MediaPlugin : MethodChannel.MethodCallHandler {
         }
         return entries.toString()
     }
+
+    /**
+     * Returns the current Activity reference from the Flutter embedding,
+     * or calls result.error if unavailable.
+     */
+    private fun getActivity(result: MethodChannel.Result): Activity? {
+        // The appContext is the applicationContext, not the Activity.
+        // We need to reach back through the FlutterActivity to get it.
+        // Use a workaround: the channel is registered by MainActivity,
+        // which passes applicationContext. We store a weak ref to the Activity.
+        return currentActivity ?: run {
+            result.error("NO_ACTIVITY", "No current Activity", null)
+            null
+        }
+    }
+
+    /** Weak reference to the hosting Activity, set by MainActivity. */
+    var currentActivity: Activity? = null
+        internal set
+
+    /** Check if media permissions are already granted. */
+    fun hasMediaPermissions(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= 33) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) ==
+                    PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) ==
+                    PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                    PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    /** Request media permissions from the user. Blocks until the user responds. */
+    private fun requestMediaPermissions(activity: Activity, result: MethodChannel.Result) {
+        if (hasMediaPermissions(activity)) {
+            result.success(true)
+            return
+        }
+
+        val permissions = if (Build.VERSION.SDK_INT >= 33) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_IMAGES,
+                Manifest.permission.READ_MEDIA_VIDEO,
+            )
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        pendingPermissionResult = result
+        ActivityCompat.requestPermissions(activity, permissions, REQUEST_MEDIA_PERMISSIONS)
+    }
+
+    /** Called by MainActivity when the permission result arrives. */
+    fun onPermissionResult(grantResults: IntArray) {
+        val pending = pendingPermissionResult ?: return
+        pendingPermissionResult = null
+        val granted = grantResults.isNotEmpty() &&
+                grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+        pending.success(granted)
+    }
+
+    /** Pending result for the permission request. */
+    private var pendingPermissionResult: MethodChannel.Result? = null
+
+    const val REQUEST_MEDIA_PERMISSIONS = 1001
 }
