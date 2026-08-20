@@ -113,21 +113,25 @@ The Dart FRB generated code and the compiled Rust .so must have matching content
 FRB content hash mismatch: Dart=-53940234, Rust=1614285601
 ```
 
-Fix by:
+Fix by removing stale pre-built .so files and rebuilding:
 
 ```bash
-# 1. Clean Rust build
+# 1. Clean stale jniLibs and build artifacts
+rm -rf app_flutter/build/
+rm -rf app_flutter/android/app/src/main/jniLibs/
+
+# 2. Rebuild APK (cargokit will recompile Rust)
+flutter build apk --debug
+
+# 3. Install fresh
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+If the issue persists, also clean the Rust target:
+
+```bash
 cd app_flutter/rust
 cargo clean
-
-# 2. Rebuild Rust .so
-cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 build --release
-
-# 3. Copy fresh .so to jniLibs
-cp target/aarch64-linux-android/release/libflutter_rust_bridge.so \
-   ../android/app/src/main/jniLibs/arm64-v8a/
-
-# 4. Rebuild Flutter APK
 cd ..
 flutter build apk --debug
 ```
@@ -142,7 +146,17 @@ The cargokit gradle plugin needs `FLUTTER_ROOT` set. When running `flutter build
 
 ### core2 yanked error
 
-Grammers depends on `core2 v0.4.0` which is yanked on crates.io. We vendor a stub in `vendor/core2/`. If the stub causes runtime issues, check `app_flutter/rust/Cargo.toml` `[patch.crates-io]` section.
+Grammers depends on `core2 v0.4.0` which is yanked on crates.io. We vendor a stub in `vendor/`. If the stub causes runtime issues, check `app_flutter/rust/Cargo.toml` `[patch.crates-io]` section.
+
+### JNI / libdartjni.so build error
+
+The `lucide_icons_flutter` package pulls in `jni` which needs native `.so` files. If the build fails with missing `libdartjni.so`, ensure `build.gradle.kts` has ABI filters:
+
+```kotlin
+ndk {
+    abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+}
+```
 
 ### App crashes on install (versionCode downgrade)
 

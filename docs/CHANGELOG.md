@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-08-20
+
+### Added
+- Debounced search (300ms) with SQL-level LIKE query replacing O(n) in-memory scan.
+- SQL aggregation for Free Up Space screen (SUM/COUNT instead of loading all items).
+- SQL-filtered upload queries (listMediaByStatus, listPendingBackup) replacing O(n) client filtering.
+- Bulk upload delegated to BackupService for concurrent background upload.
+- Input validation on API credentials screen with error SnackBar.
+- Android splash screen with branded Telegram blue background.
+- ProGuard rules for release builds.
+- Vector drawable adaptive icon with properly sized paper airplane silhouette.
+
+### Fixed
+- Null crash in onboarding screen (apiHash.isEmpty on null).
+- Dart syntax errors in onboarding screen (stray character, comma vs semicolon).
+- Main thread blocking on startup: heavy Rust init moved to async after first frame.
+- JNI/libdartjni.so build error: added ABI filters to build.gradle.kts.
+- Upload photo memory OOM: switched to disk streaming instead of tokio::fs::read.
+- TextEditingController recreated inside build() causing memory leaks.
+- Type mismatch in API credentials save (int vs String for telegramApiId).
+- FRB content hash mismatch from stale pre-built .so files.
+
+### Removed
+- Dead Rust code: task_hub.rs and upload_manager.rs modules.
+
 ## [0.7.0] - 2026-08-19
 
 ### Added

@@ -108,14 +108,38 @@ WorkManager triggers BackupWorker (every 15 min)
   -> Show completion/failure notification
 ```
 
+### Search
+
+```
+SearchScreen -> user types query
+  -> 300ms debounce timer
+  -> core.searchMedia(query, limit: 200)
+  -> SQL: SELECT * FROM media WHERE file_name LIKE '%query%'
+     OR id IN (SELECT media_id FROM captions WHERE content LIKE '%query%')
+  -> Returns MediaItem list
+  -> UI updates with results
+```
+
+### Free Up Space
+
+```
+FreeUpSpaceScreen -> load screen
+  -> core.sumReclaimableSpace()
+  -> SQL: SELECT SUM(file_size_bytes), COUNT(*) FROM media_items
+     WHERE sync_status = 'BACKED_UP'
+  -> Returns (totalBytes, totalCount)
+  -> UI shows reclaimed space stats
+```
+
 ### Multi-Select Bulk Upload
 
 ```
 PhotosScreen -> long-press photo -> selection mode
   -> Toolbar: "X selected", Select All, Upload button
   -> Tap Upload -> Bottom sheet confirmation
-  -> Process each selected item sequentially
-  -> Show progress (X of Y)
+  -> Delegates to BackupService.startBackup()
+  -> Concurrent background upload via WorkManager
+  -> Show progress notifications
   -> Update status badges on completion
 ```
 
@@ -160,7 +184,7 @@ Migrations run automatically on `Db::open()`. Old data is preserved.
 
 | Module | Location | Responsibility |
 |---|---|---|
-| `core::db` | `core/src/db.rs` | SQLite schema, CRUD, migrations |
+| `core::db` | `core/src/db.rs` | SQLite schema, CRUD, migrations, searchMedia, sumReclaimableSpace, listMediaByStatus |
 | `core::models` | `core/src/models.rs` | Data structures, serialization |
 | `core::media` | `core/src/media.rs` | EXIF extraction, thumbnail, SHA-256 |
 | `core::geo` | `core/src/geo.rs` | Offline reverse geocoding (~280 cities) |
@@ -173,6 +197,24 @@ Migrations run automatically on `Db::open()`. Old data is preserved.
 | `MediaPlugin.kt` | `android/.../MediaPlugin.kt` | Android MediaStore, thumbnails, file read |
 | `BackupWorker.kt` | `android/.../BackupWorker.kt` | WorkManager periodic backup |
 | `MainActivity.kt` | `android/.../MainActivity.kt` | FlutterActivity + MethodChannel registration |
+
+## Startup Sequence
+
+```
+main()
+  -> runApp(AppRoot())            # Shows loading spinner immediately
+  -> WidgetsBinding.instance.addPostFrameCallback(() {
+       RustLib.init()             # Load native .so (~2s)
+       initCore(appDataDir)       # Open SQLite (~0.5s)
+       TelegramHandle.newInstance()  # Create MTProto client (~1s)
+       checkConnection()          # TCP connect to Telegram (~3-10s)
+       -> If auth OK: switch to AppShell
+       -> If no auth: switch to OnboardingScreen
+       -> On error: show retry UI with 15s timeout
+     })
+```
+
+Heavy init runs after first frame is rendered, so the user sees the loading spinner immediately instead of a frozen screen.
 
 ## UI Design Principles
 

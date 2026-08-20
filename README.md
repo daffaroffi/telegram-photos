@@ -98,7 +98,7 @@ Built with **Flutter UI** + **Rust core** via [flutter_rust_bridge](https://fzyz
 │           ├── MediaPlugin.kt     # MediaStore scan, thumbnails
 │           ├── MainActivity.kt    # FlutterActivity + MethodChannels
 │           └── BackupWorker.kt    # WorkManager periodic backup
-├── vendor/core2/                  # Vendored core2 stub (yanked on crates.io)
+├── vendor/                         # Vendored dependencies
 └── docs/                          # Public documentation
     ├── ARCHITECTURE.md            # System architecture and data flow
     ├── BUILD.md                   # Build and installation guide
@@ -148,7 +148,7 @@ See **[docs/BUILD.md](docs/BUILD.md)** for detailed instructions including relea
 
 This project uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH+buildNumber`.
 
-Current version: **0.7.0+5000**
+Current version: **0.7.1+5100**
 
 ## License
 

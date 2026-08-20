@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Paper airplane silhouette — centered in 72dp safe zone of adaptive icon.
+         The outer 18dp on each side is clipped by mask shapes. -->
+
+    <!-- Main body / wing triangle -->
+    <path
+        android:pathData="M28,54 L80,32 L66,56 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Tail / fold triangle -->
+    <path
+        android:pathData="M28,54 L42,62 L38,68 Z"
+        android:fillColor="#CCCCCC" />
+
+    <!-- Wing fold line -->
+    <path
+        android:pathData="M42,62 L66,56"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.0"
+        android:strokeLineCap="round" />
+</vector>
